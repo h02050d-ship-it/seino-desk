@@ -45,6 +45,11 @@ button.primary:disabled{opacity:.5;cursor:default}
 #login{max-width:360px;margin:80px auto}
 .tome-box{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin-top:6px;background:#fbfaf7}
 .badge{font-size:10px;background:var(--ok);color:#fff;border-radius:5px;padding:2px 6px}
+.mbadge{font-size:10.5px;font-weight:800;color:#fff;border-radius:6px;padding:2px 7px;letter-spacing:.02em;flex:0 0 auto}
+.mbadge.rakuten{background:#bf0000}
+.mbadge.yahoo{background:#ff0033}
+.mbadge.ichiba{background:#2e7d32}
+.mbadge.other{background:#8a8378}
 </style>
 </head>
 <body>
@@ -190,10 +195,13 @@ async function loadCandidates(){
     const el=$("#cand-list");
     if(!j.list.length){ el.innerHTML='<div class="hint" style="padding:12px">西濃・未発行の注文はありません</div>'; }
     else{
-      el.innerHTML=j.list.map(c=>`<div class="hist-item" style="cursor:pointer" onclick='pickCand(${JSON.stringify(JSON.stringify(c))})'>
-        <span>${c.mall==="rakuten"?"🅡":c.mall==="yahoo"?"🅨":"🏪"}</span><b>${c.customer} 様</b>
+      const MB={rakuten:["楽天","rakuten"],yahoo:["Yahoo!","yahoo"],ichiba:["市場","ichiba"]};
+      el.innerHTML=j.list.map(c=>{
+        const m=MB[c.mall]||["その他","other"];
+        return `<div class="hist-item" style="cursor:pointer" onclick='pickCand(${JSON.stringify(JSON.stringify(c))})'>
+        <span class="mbadge ${m[1]}">${m[0]}</span><b>${c.customer} 様</b>
         <span class="meta">${c.kosu}個口・${c.weightKg}kg${c.custType==="個人"&&c.branch?("・"+c.branch+"止め"):""}</span>
-        <span class="sp"></span><span style="color:var(--accent);font-size:12px">選択 ▸</span></div>`).join("");
+        <span class="sp"></span><span style="color:var(--accent);font-size:12px">選択 ▸</span></div>`;}).join("");
     }
     el.style.display="block";
   }catch(e){ toast("通信エラー"); }
