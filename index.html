@@ -74,8 +74,9 @@ button.primary:disabled{opacity:.5;cursor:default}
 
   <!-- 作成フォーム -->
   <div class="card" id="main" style="display:none">
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
       <button class="hbtn" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer" onclick="loadCandidates()">📥 注文から呼び出し（order-desk）</button>
+      <button class="hbtn" style="background:#e8721b;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer" onclick="openPartnerModal()">📇 取引先から選択</button>
       <span class="hint" id="cand-hint">EC注文の届け先・個口を自動転記して発行できます</span>
     </div>
     <div id="cand-list" style="display:none;border:1px solid var(--line);border-radius:10px;margin-bottom:12px;max-height:220px;overflow-y:auto"></div>
@@ -136,6 +137,10 @@ button.primary:disabled{opacity:.5;cursor:default}
         <button onclick="pdfView(document.getElementById('r-no').textContent)">📄 送り状PDF</button>
         <button onclick="resetForm()">➕ 続けて作成</button>
       </div>
+      <div style="margin-top:8px">
+        <button onclick="savePartner()" style="background:#e8721b;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer">📇 この宛先をマスタに保存</button>
+        <span class="hint">〒・電話を補完したら、次回のために取引先マスタへ保存できます（空欄のみ埋めます）</span>
+      </div>
     </div>
   </div>
 
@@ -146,14 +151,33 @@ button.primary:disabled{opacity:.5;cursor:default}
   </div>
 </div>
 
+<!-- 取引先マスタ選択モーダル -->
+<div id="pt-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:80;align-items:flex-start;justify-content:center;padding:40px 12px" onclick="if(event.target===this)closePartnerModal()">
+  <div style="background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.2)">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px">
+      <b style="font-size:15px">📇 取引先から選択</b>
+      <span style="flex:1"></span>
+      <button onclick="closePartnerModal()" style="background:var(--line);color:var(--ink);border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">✕ 閉じる</button>
+    </div>
+    <div style="padding:10px 16px">
+      <input type="text" id="pt-search" placeholder="名前・住所で検索" oninput="renderPartnerList()">
+    </div>
+    <div id="pt-list" style="overflow-y:auto;padding:0 16px 16px"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const API_URL="https://script.google.com/macros/s/AKfycbwxyn-27FkDO0glFdHwqiN6NiXG5vY0rZXOAfBMDMnh2aSBHO9KxqQRThOZb7W8hAT6/exec";
 const OFFICES=["札幌","旭川","釧路","帯広","札幌西","小樽","室蘭","苫小牧","函館","空知","北見","青森","弘前","十和田","八戸","盛岡","水沢","宮古","仙台","仙台南","古川","秋田","横手荷扱所","本荘","能代","大館","山形","庄内","福島","郡山","いわき","白河","水戸","古河","北茨城","日立","土浦","龍ケ崎","宇都宮","佐野","小山","大田原","前橋","高崎","渋川","太田","秩父","熊谷","本庄","川越","久喜","東松山","大宮","岩槻","入間","越谷","和光","川越西","木更津","成田","千葉","柏","松戸","船橋","市川","佐倉","東京","深川","錦糸町","足立東","足立","世田谷","京浜","大森","八王子","八王子北","府中","横浜","横浜南","鶴見","相模原","座間","厚木","茅ケ崎","小田原","甲府","三条","新潟","糸魚川","上越","長岡","高岡","富山","黒部","加賀","金沢","能登","敦賀","武生","福井","長野","上田","松本","諏訪","伊那","飯田","上松","岐阜東濃","美濃加茂","白鳥","岐阜","関","大垣","高山","萩原","各務原","沼津","富士","静岡","藤枝","袋井","浜松","浜松西","沼津東","金谷","知多","豊橋","豊川","岡崎","大府","名古屋西","名古屋","名古屋東","笠寺","大曽根","名古屋北","津島","小牧","一宮","四日市","鈴鹿","久居","伊勢","上野","津（三重）","長浜","彦根","近江","滋賀","大津","亀岡","舞鶴","京都","京都南","茨木","摂津","豊中","大阪","平野","関目","大阪西","大東","河内","布施","松原","堺","尼崎","神戸","西神戸","神明","福知山","姫路","加西","淡路","奈良","和歌山","鳥取","倉吉","米子","松江","出雲","大田","浜田","益田","津山","備前","岡山","倉敷","福山","尾道","三次","東広島","呉","広島","西広島","岩国","下松","山口","宇部","下関","徳島","三豊","坂出","高松","松山","今治","新居浜","大洲","宇和島","高知","土佐","中村","福岡","大牟田","北九州","筑豊","福岡西","福岡北","豊前","鳥栖","佐賀","武雄","佐世保","長崎","長崎西","熊本","八代","大分","北大分","延岡","都城","宮崎","出水","川内","鹿児島","加治木","枕崎","鹿屋","志布志","宜野湾","沖縄","名護","うるま"];
+// fax-desk GAS（取引先マスタ統合API）— seino-deskと同じ共通ログインで認証
+const FAXDESK_URL="https://script.google.com/macros/s/AKfycbxQCf2HVfLjUAzOYXJHzzhquN3zkNrUAgcusg3mH5uhlm-UySsDYXBChhLjZGI2DyecIg/exec";
 let CRED=null;
+let PARTNERS=null;
 const $=s=>document.querySelector(s);
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2600);}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
 // ---- login ----
 function init(){
@@ -225,6 +249,74 @@ function pickCand(s){
   toast("転記しました。内容を確認して発行してください");
 }
 function unlink(){ LINKED=null; $("#linked-banner").style.display="none"; toast("連携を解除しました（手入力の内容で発行されます）"); }
+
+// ---- 取引先マスタ（fax-desk GAS partners API） ----
+async function openPartnerModal(){
+  $("#pt-modal").style.display="flex";
+  $("#pt-search").value="";
+  if(!PARTNERS){ await loadPartners(false); }
+  renderPartnerList();
+  if(PARTNERS) $("#pt-search").focus();
+}
+function closePartnerModal(){ $("#pt-modal").style.display="none"; }
+async function loadPartners(force){
+  if(!force){ // sessionStorageキャッシュ（30分TTL）
+    try{
+      const c=JSON.parse(sessionStorage.getItem("seinodesk_partners")||"null");
+      if(c&&c.at&&(Date.now()-c.at)<30*60*1000&&Array.isArray(c.list)){ PARTNERS=c.list; return; }
+    }catch(e){}
+  }
+  $("#pt-list").innerHTML='<div class="hint" style="padding:12px">読み込み中…</div>';
+  try{
+    const r=await fetch(FAXDESK_URL+"?action=partners&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass));
+    const j=await r.json();
+    if(!j.ok||!Array.isArray(j.partners)) throw new Error("bad");
+    PARTNERS=j.partners;
+    sessionStorage.setItem("seinodesk_partners",JSON.stringify({at:Date.now(),list:PARTNERS}));
+  }catch(e){
+    PARTNERS=null;
+    $("#pt-list").innerHTML='<div class="hint" style="padding:12px;color:var(--warn)">取引先リストを取得できませんでした<br><button onclick="loadPartners(true).then(renderPartnerList)" style="margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">再試行</button></div>';
+  }
+}
+function renderPartnerList(){
+  if(!PARTNERS){ return; }
+  const q=($("#pt-search").value||"").trim().toLowerCase();
+  const list=PARTNERS.filter(p=>{
+    if(!q) return true;
+    return ((p.name||"")+" "+(p.addr||"")+" "+(p.kana||"")).toLowerCase().includes(q);
+  }).slice(0,300);
+  const el=$("#pt-list");
+  if(!list.length){ el.innerHTML='<div class="hint" style="padding:12px">該当する取引先がありません</div>'; return; }
+  el.innerHTML=list.map(p=>{
+    const idx=PARTNERS.indexOf(p);
+    const sub=[p.method,p.addr].filter(Boolean).join("・");
+    return `<div class="hist-item" style="cursor:pointer" onclick="pickPartner(${idx})"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b>${sub?`<div class="meta">${esc(sub)}</div>`:""}</div><span style="color:var(--accent);font-size:12px">選択 ▸</span></div>`;
+  }).join("");
+}
+function pickPartner(idx){ // 空の項目は触らず、partnerに値がある欄だけ転記
+  const p=PARTNERS[idx]; if(!p) return;
+  if(p.name) $("#f-name").value=p.name;
+  if(p.zip){ const z=String(p.zip).replace(/[^0-9]/g,""); if(z) $("#f-zip").value=z; }
+  if(p.addr) $("#f-addr").value=p.addr;
+  if(p.tel){ const t=String(p.tel).replace(/[^0-9]/g,""); if(t) $("#f-tel").value=t; }
+  closePartnerModal();
+  toast("転記しました。〒・電話を確認して発行してください");
+}
+async function savePartner(){ // partnerupsert（空欄のみ埋める＝安全）
+  const name=$("#f-name").value.trim();
+  if(!name){ toast("お届け先名がありません"); return; }
+  const zip=$("#f-zip").value.replace(/[^0-9]/g,"");
+  const tel=$("#f-tel").value.trim();
+  const addr=$("#f-addr").value.trim();
+  toast("取引先マスタに保存中…");
+  try{
+    const r=await fetch(FAXDESK_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({email:CRED.email,pass:CRED.pass,action:"partnerupsert",name,zip,tel,addr})});
+    const j=await r.json();
+    if(j.ok){ toast(j.created?"新規登録しました":"保存しました"); PARTNERS=null; sessionStorage.removeItem("seinodesk_partners"); }
+    else toast("保存できませんでした: "+(j.error||""));
+  }catch(e){ toast("保存に失敗しました（通信エラー）"); }
+}
 let zipTimer=null;
 function zipAuto(){ // 〒7桁そろったら住所を自動入力（日本郵便データ）
   const z=$("#f-zip").value.replace(/[^0-9]/g,"");
