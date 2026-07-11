@@ -83,8 +83,8 @@ button.primary:disabled{opacity:.5;cursor:default}
     </div>
     <div id="addr-rows">
       <div class="row" style="margin-top:8px">
-        <div style="flex:0 0 130px"><label class="f">〒（ハイフン不要）<b>*</b></label><input type="text" id="f-zip" maxlength="8" placeholder="4380086"></div>
-        <div><label class="f">住所 <b>*</b></label><input type="text" id="f-addr" maxlength="30" placeholder="静岡県磐田市見付…"></div>
+        <div style="flex:0 0 130px"><label class="f">〒（ハイフン不要）<b>*</b></label><input type="text" id="f-zip" maxlength="8" placeholder="4380086" oninput="zipAuto()"></div>
+        <div><label class="f">住所 <b>*</b></label><input type="text" id="f-addr" maxlength="30" placeholder="〒を入れると自動で入ります"></div>
       </div>
     </div>
     <label class="f">電話番号 <b>*</b></label>
@@ -119,6 +119,7 @@ button.primary:disabled{opacity:.5;cursor:default}
       <div class="btns">
         <a id="r-track" href="#" target="_blank">📍 追跡</a>
         <button onclick="pdfView(document.getElementById('r-no').textContent)">📄 送り状PDF</button>
+        <button onclick="resetForm()">➕ 続けて作成</button>
       </div>
     </div>
   </div>
@@ -143,6 +144,7 @@ function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");se
 function init(){
   const dl=$("#branches"); OFFICES.forEach(n=>{const o=document.createElement("option");o.value=n;dl.appendChild(o);});
   $("#f-date").value=new Date().toISOString().slice(0,10);
+  ["l-email","l-pass"].forEach(id=>{$("#"+id).addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});});
   const c=localStorage.getItem("seinodesk_cred");
   if(c){ CRED=JSON.parse(c); showMain(); }
   renderHist();
@@ -166,6 +168,31 @@ function tomeToggle(){
   const on=$("#f-tome").checked;
   $("#tome-box").style.display=on?"block":"none";
   $("#addr-rows").style.display=on?"none":"block";
+}
+let zipTimer=null;
+function zipAuto(){ // 〒7桁そろったら住所を自動入力（日本郵便データ）
+  const z=$("#f-zip").value.replace(/[^0-9]/g,"");
+  if(z.length!==7) return;
+  clearTimeout(zipTimer);
+  zipTimer=setTimeout(async()=>{
+    try{
+      const r=await fetch("https://zipcloud.ibsnet.co.jp/api/search?zipcode="+z);
+      const j=await r.json();
+      const a=(j.results||[])[0];
+      if(a){
+        const head=a.address1+a.address2+a.address3;
+        const cur=$("#f-addr").value.trim();
+        if(!cur||head.startsWith(cur)||cur.startsWith(a.address1)){ $("#f-addr").value=head; }
+        $("#f-addr").focus(); toast("住所を自動入力しました。番地を続けて入力してください");
+      }
+    }catch(e){}
+  },250);
+}
+function resetForm(){
+  ["f-name","f-zip","f-addr","f-tel","f-kg","f-kiji1","f-kiji2","f-branch"].forEach(id=>{const e=document.getElementById(id);if(e)e.value="";});
+  $("#f-kosu").value=1; $("#f-tome").checked=false; tomeToggle();
+  $("#f-print").checked=true; $("#result").style.display="none";
+  window.scrollTo({top:0,behavior:"smooth"}); $("#f-name").focus();
 }
 function autoWeight(){
   const k=parseInt($("#f-kosu").value,10)||1;
@@ -207,6 +234,7 @@ async function createOkurijo(){
     $("#r-note").innerHTML=(j.tome?("🏢 "+j.tome+"支店止め（〒"+j.zip+"）　"):"")+(j.print?'<span class="badge">🖨 印刷キュー済（1分以内に出ます）</span>':"登録のみ（印刷なし）");
     $("#r-track").href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1="+j.okurijoNo;
     $("#result").style.display="block";
+    $("#result").scrollIntoView({behavior:"smooth",block:"center"});
     addHist({no:j.okurijoNo,name:name,kosu:kosu,at:new Date().toISOString().slice(0,16).replace("T"," "),tome:j.tome||""});
     toast("✅ 発行しました: "+j.okurijoNo);
   }catch(e){ toast("通信エラー"); }
