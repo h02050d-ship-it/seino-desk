@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>西濃送り状デスク｜林材木店</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%231657a0"/><text x="50" y="72" font-size="60" font-family="sans-serif" font-weight="bold" fill="white" text-anchor="middle">送</text></svg>'>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#2b2b2b;--muted:#8a8378;--line:#e5e0d5;--accent:#1657a0;--accent2:#0d4886;--ok:#2e7d5b;--warn:#c0392b;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+.header{background:var(--accent);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px}
+.header .logo{width:34px;height:34px;border-radius:8px;background:#fff;color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:18px}
+.header h1{font-size:16px;font-weight:600}
+.header .sub{font-size:11px;opacity:.8}
+.header .sp{flex:1}
+.header a,.header button.hbtn{color:#fff;background:rgba(255,255,255,.15);border:none;border-radius:8px;padding:6px 12px;font-size:12px;text-decoration:none;cursor:pointer}
+.wrap{max-width:640px;margin:0 auto;padding:20px 14px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.sec{font-size:12px;font-weight:600;color:var(--muted);margin:14px 0 6px;letter-spacing:.05em}
+.sec:first-child{margin-top:0}
+label.f{display:block;font-size:12px;color:var(--muted);margin:10px 0 3px}
+label.f b{color:var(--warn)}
+input[type=text],input[type=number],input[type=date],input[type=email],input[type=password]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:15px;background:#fdfcfa}
+input:focus{outline:2px solid var(--accent);border-color:transparent}
+.row{display:flex;gap:10px}
+.row>div{flex:1}
+.radio-line,.check-line{display:flex;gap:16px;align-items:center;padding:8px 2px;font-size:14px}
+.radio-line label,.check-line label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.hint{font-size:11px;color:var(--muted);margin-top:3px}
+button.primary{width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:11px;font-size:16px;font-weight:600;cursor:pointer;margin-top:16px}
+button.primary:hover{background:var(--accent2)}
+button.primary:disabled{opacity:.5;cursor:default}
+.result{border-left:4px solid var(--ok);background:#f0f7f3;border-radius:10px;padding:14px;margin-top:14px;display:none}
+.result .no{font-size:22px;font-weight:700;color:var(--ok);letter-spacing:.03em}
+.result .btns{display:flex;gap:8px;margin-top:10px}
+.result .btns a,.result .btns button{flex:1;text-align:center;padding:9px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:13px;color:var(--ink);text-decoration:none;cursor:pointer}
+.hist-item{display:flex;align-items:center;gap:8px;padding:9px 4px;border-bottom:1px solid var(--line);font-size:13px}
+.hist-item .no{font-weight:600;color:var(--accent)}
+.hist-item .meta{color:var(--muted);font-size:11px}
+.hist-item .sp{flex:1}
+.hist-item a{color:var(--accent);text-decoration:none;font-size:12px;padding:4px 8px;border:1px solid var(--line);border-radius:6px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;opacity:0;transition:.3s;pointer-events:none;z-index:99}
+.toast.show{opacity:1}
+#login{max-width:360px;margin:80px auto}
+.tome-box{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin-top:6px;background:#fbfaf7}
+.badge{font-size:10px;background:var(--ok);color:#fff;border-radius:5px;padding:2px 6px}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">送</div>
+  <div><h1>西濃送り状デスク</h1><div class="sub">送り状の単体発行（EC以外・市場/電話/持込対応）</div></div>
+  <div class="sp"></div>
+  <button class="hbtn" onclick="window.open('https://net-n.seino.co.jp/ninsyo/','_blank')" title="削除・訂正はカンガルーマジックで">🔧 KM2</button>
+  <button class="hbtn" onclick="logout()" id="btn-logout" style="display:none">ログアウト</button>
+</div>
+
+<div class="wrap">
+  <!-- ログイン -->
+  <div class="card" id="login">
+    <div class="sec">ログイン（ボードと共通）</div>
+    <label class="f">メールアドレス</label>
+    <input type="email" id="l-email" autocomplete="username">
+    <label class="f">パスワード</label>
+    <input type="password" id="l-pass" autocomplete="current-password">
+    <button class="primary" onclick="doLogin()">ログイン</button>
+  </div>
+
+  <!-- 作成フォーム -->
+  <div class="card" id="main" style="display:none">
+    <div class="sec">お届け先</div>
+    <label class="f">お名前・会社名 <b>*</b></label>
+    <input type="text" id="f-name" maxlength="30" placeholder="例: 山田 太郎">
+    <div class="check-line" style="margin-top:8px">
+      <label><input type="checkbox" id="f-tome" onchange="tomeToggle()"> 🏢 支店止め（個人のお客様など）</label>
+    </div>
+    <div class="tome-box" id="tome-box" style="display:none">
+      <label class="f" style="margin-top:0">止め支店名 <b>*</b></label>
+      <input type="text" id="f-branch" list="branches" placeholder="例: 岩槻（入力で候補表示）">
+      <datalist id="branches"></datalist>
+      <div class="hint">住所・〒は支店のものが自動で入ります。電話はお客様本人の番号を入れてください（着荷連絡用）。</div>
+    </div>
+    <div id="addr-rows">
+      <div class="row" style="margin-top:8px">
+        <div style="flex:0 0 130px"><label class="f">〒（ハイフン不要）<b>*</b></label><input type="text" id="f-zip" maxlength="8" placeholder="4380086"></div>
+        <div><label class="f">住所 <b>*</b></label><input type="text" id="f-addr" maxlength="30" placeholder="静岡県磐田市見付…"></div>
+      </div>
+    </div>
+    <label class="f">電話番号 <b>*</b></label>
+    <input type="text" id="f-tel" maxlength="13" placeholder="09012345678">
+
+    <div class="sec" style="margin-top:18px">荷物</div>
+    <div class="row">
+      <div><label class="f">個口数 <b>*</b></label><input type="number" id="f-kosu" min="1" value="1" onchange="autoWeight()"></div>
+      <div><label class="f">総重量 kg</label><input type="number" id="f-kg" min="1" placeholder="自動: 個口×20"></div>
+    </div>
+    <div class="hint">目安: 2m材=20kg／3m=30kg／4m=40kg（1個口あたり）× 個口数</div>
+    <div class="radio-line">
+      <label><input type="radio" name="motochaku" value="1" checked> 元払</label>
+      <label><input type="radio" name="motochaku" value="3"> 着払</label>
+    </div>
+    <div class="row">
+      <div><label class="f">記事1（品名など・全角15字）</label><input type="text" id="f-kiji1" maxlength="15" placeholder="桧羽目板12×103×1820"></div>
+      <div><label class="f">記事2</label><input type="text" id="f-kiji2" maxlength="15" placeholder="特上小 両端カット"></div>
+    </div>
+    <div class="row">
+      <div><label class="f">出荷予定日</label><input type="date" id="f-date"></div>
+      <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+        <label style="display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="f-print" checked> 🖨 会社PCで自動印刷</label>
+      </div>
+    </div>
+    <button class="primary" id="btn-go" onclick="createOkurijo()">🚚 送り状を発行する</button>
+
+    <div class="result" id="result">
+      <div style="font-size:12px;color:var(--muted)">送り状番号</div>
+      <div class="no" id="r-no"></div>
+      <div style="font-size:12px;margin-top:4px" id="r-note"></div>
+      <div class="btns">
+        <a id="r-track" href="#" target="_blank">📍 追跡</a>
+        <button onclick="pdfView(document.getElementById('r-no').textContent)">📄 送り状PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 履歴 -->
+  <div class="card" id="hist-card" style="display:none">
+    <div class="sec">このブラウザでの発行履歴（直近20件）</div>
+    <div id="hist"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_URL="https://script.google.com/macros/s/AKfycbwxyn-27FkDO0glFdHwqiN6NiXG5vY0rZXOAfBMDMnh2aSBHO9KxqQRThOZb7W8hAT6/exec";
+const OFFICES=["札幌","旭川","釧路","帯広","札幌西","小樽","室蘭","苫小牧","函館","空知","北見","青森","弘前","十和田","八戸","盛岡","水沢","宮古","仙台","仙台南","古川","秋田","横手荷扱所","本荘","能代","大館","山形","庄内","福島","郡山","いわき","白河","水戸","古河","北茨城","日立","土浦","龍ケ崎","宇都宮","佐野","小山","大田原","前橋","高崎","渋川","太田","秩父","熊谷","本庄","川越","久喜","東松山","大宮","岩槻","入間","越谷","和光","川越西","木更津","成田","千葉","柏","松戸","船橋","市川","佐倉","東京","深川","錦糸町","足立東","足立","世田谷","京浜","大森","八王子","八王子北","府中","横浜","横浜南","鶴見","相模原","座間","厚木","茅ケ崎","小田原","甲府","三条","新潟","糸魚川","上越","長岡","高岡","富山","黒部","加賀","金沢","能登","敦賀","武生","福井","長野","上田","松本","諏訪","伊那","飯田","上松","岐阜東濃","美濃加茂","白鳥","岐阜","関","大垣","高山","萩原","各務原","沼津","富士","静岡","藤枝","袋井","浜松","浜松西","沼津東","金谷","知多","豊橋","豊川","岡崎","大府","名古屋西","名古屋","名古屋東","笠寺","大曽根","名古屋北","津島","小牧","一宮","四日市","鈴鹿","久居","伊勢","上野","津（三重）","長浜","彦根","近江","滋賀","大津","亀岡","舞鶴","京都","京都南","茨木","摂津","豊中","大阪","平野","関目","大阪西","大東","河内","布施","松原","堺","尼崎","神戸","西神戸","神明","福知山","姫路","加西","淡路","奈良","和歌山","鳥取","倉吉","米子","松江","出雲","大田","浜田","益田","津山","備前","岡山","倉敷","福山","尾道","三次","東広島","呉","広島","西広島","岩国","下松","山口","宇部","下関","徳島","三豊","坂出","高松","松山","今治","新居浜","大洲","宇和島","高知","土佐","中村","福岡","大牟田","北九州","筑豊","福岡西","福岡北","豊前","鳥栖","佐賀","武雄","佐世保","長崎","長崎西","熊本","八代","大分","北大分","延岡","都城","宮崎","出水","川内","鹿児島","加治木","枕崎","鹿屋","志布志","宜野湾","沖縄","名護","うるま"];
+let CRED=null;
+const $=s=>document.querySelector(s);
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2600);}
+
+// ---- login ----
+function init(){
+  const dl=$("#branches"); OFFICES.forEach(n=>{const o=document.createElement("option");o.value=n;dl.appendChild(o);});
+  $("#f-date").value=new Date().toISOString().slice(0,10);
+  const c=localStorage.getItem("seinodesk_cred");
+  if(c){ CRED=JSON.parse(c); showMain(); }
+  renderHist();
+}
+async function doLogin(){
+  const email=$("#l-email").value.trim(), pass=$("#l-pass").value;
+  if(!email||!pass){ toast("メールとパスワードを入力してください"); return; }
+  toast("確認中…");
+  try{
+    const r=await fetch(API_URL+"?action=pickupjob&email="+encodeURIComponent(email)+"&pass="+encodeURIComponent(pass));
+    const j=await r.json();
+    if(j.ok){ CRED={email,pass}; localStorage.setItem("seinodesk_cred",JSON.stringify(CRED)); showMain(); toast("ログインしました"); }
+    else toast("メールまたはパスワードが違います");
+  }catch(e){ toast("通信エラー"); }
+}
+function showMain(){ $("#login").style.display="none"; $("#main").style.display="block"; $("#hist-card").style.display="block"; $("#btn-logout").style.display="inline-block"; }
+function logout(){ localStorage.removeItem("seinodesk_cred"); location.reload(); }
+
+// ---- form ----
+function tomeToggle(){
+  const on=$("#f-tome").checked;
+  $("#tome-box").style.display=on?"block":"none";
+  $("#addr-rows").style.display=on?"none":"block";
+}
+function autoWeight(){
+  const k=parseInt($("#f-kosu").value,10)||1;
+  if(!$("#f-kg").value) $("#f-kg").placeholder="自動: "+(k*20)+"kg（2m換算）";
+}
+async function createOkurijo(){
+  const tome=$("#f-tome").checked;
+  const branch=tome?$("#f-branch").value.trim():"";
+  const name=$("#f-name").value.trim(), tel=$("#f-tel").value.trim();
+  const zip=$("#f-zip").value.trim(), addr=$("#f-addr").value.trim();
+  const kosu=parseInt($("#f-kosu").value,10)||0;
+  let kg=parseInt($("#f-kg").value,10)||0; if(!kg) kg=kosu*20;
+  if(!name){ toast("お届け先名を入力してください"); return; }
+  if(!tel){ toast("電話番号を入力してください"); return; }
+  if(tome && !OFFICES.includes(branch)){ toast("止め支店名を候補から選んでください"); return; }
+  if(!tome && (!zip||!addr)){ toast("〒と住所を入力してください"); return; }
+  if(kosu<1){ toast("個口数を入力してください"); return; }
+  const motochaku=document.querySelector('input[name="motochaku"]:checked').value;
+  const doPrint=$("#f-print").checked;
+  const date=$("#f-date").value.replace(/-/g,"");
+  const msg="【西濃 送り状発行】🟢本番\n\n届け先: "+name+"\n"
+    +(tome?("止め: "+branch+"支店（住所は支店に自動設定）"):("〒"+zip+" "+addr))
+    +"\nTEL: "+tel+"\n個口: "+kosu+"個口 / "+kg+"kg / "+(motochaku==="3"?"着払":"元払")
+    +((($("#f-kiji1").value)||($("#f-kiji2").value))?("\n記事: "+$("#f-kiji1").value+" "+$("#f-kiji2").value):"")
+    +"\n出荷予定日: "+$("#f-date").value
+    +"\n印刷: "+(doPrint?"会社PCで自動印刷":"しない（登録のみ）")
+    +"\n\nよろしいですか？";
+  if(!confirm(msg)) return;
+  $("#btn-go").disabled=true; toast("西濃へ登録中…");
+  try{
+    const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({email:CRED.email,pass:CRED.pass,action:"seinocreate",
+        customer:name,zip:zip,addr:addr,tel:tel,kosu:kosu,juryoKg:kg,motochaku:motochaku,
+        tomeBranch:branch,kiji1:$("#f-kiji1").value.trim(),kiji2:$("#f-kiji2").value.trim(),
+        date:date,print:doPrint})});
+    const j=await r.json();
+    if(!j.ok){ toast("失敗: "+(j.error||"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; return; }
+    $("#r-no").textContent=j.okurijoNo;
+    $("#r-note").innerHTML=(j.tome?("🏢 "+j.tome+"支店止め（〒"+j.zip+"）　"):"")+(j.print?'<span class="badge">🖨 印刷キュー済（1分以内に出ます）</span>':"登録のみ（印刷なし）");
+    $("#r-track").href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1="+j.okurijoNo;
+    $("#result").style.display="block";
+    addHist({no:j.okurijoNo,name:name,kosu:kosu,at:new Date().toISOString().slice(0,16).replace("T"," "),tome:j.tome||""});
+    toast("✅ 発行しました: "+j.okurijoNo);
+  }catch(e){ toast("通信エラー"); }
+  $("#btn-go").disabled=false;
+}
+async function pdfView(no){
+  toast("PDF取得中…");
+  try{
+    const r=await fetch(API_URL+"?action=seinopdf&no="+encodeURIComponent(no)+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass));
+    const j=await r.json();
+    if(!j.ok||!j.pdf){ toast("PDFを取得できませんでした"); return; }
+    const bin=atob(j.pdf); const arr=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    window.open(URL.createObjectURL(new Blob([arr],{type:"application/pdf"})),"_blank");
+  }catch(e){ toast("通信エラー"); }
+}
+// ---- history (localStorage) ----
+function getHist(){ try{return JSON.parse(localStorage.getItem("seinodesk_hist")||"[]");}catch(e){return[];} }
+function addHist(h){ const a=getHist(); a.unshift(h); localStorage.setItem("seinodesk_hist",JSON.stringify(a.slice(0,20))); renderHist(); }
+function renderHist(){
+  const a=getHist(); const el=$("#hist");
+  if(!a.length){ el.innerHTML='<div class="hint">まだありません</div>'; return; }
+  el.innerHTML=a.map(h=>`<div class="hist-item"><span class="no">${h.no}</span><span>${h.name} 様</span><span class="meta">${h.kosu}個口${h.tome?("・"+h.tome+"止め"):""}・${h.at}</span><span class="sp"></span><a href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${h.no}" target="_blank">追跡</a><a href="#" onclick="pdfView('${h.no}');return false;">PDF</a></div>`).join("");
+}
+init();
+</script>
+</body>
+</html>
