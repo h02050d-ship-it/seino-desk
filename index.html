@@ -157,10 +157,24 @@ button.primary:disabled{opacity:.5;cursor:default}
     <div style="padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px">
       <b style="font-size:15px">📇 取引先から選択</b>
       <span style="flex:1"></span>
+      <button onclick="openPartnerEdit(-1)" style="background:#e8721b;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">➕ 追加</button>
       <button onclick="closePartnerModal()" style="background:var(--line);color:var(--ink);border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">✕ 閉じる</button>
     </div>
     <div style="padding:10px 16px">
       <input type="text" id="pt-search" placeholder="名前・住所で検索" oninput="renderPartnerList()">
+    </div>
+    <div id="pt-edit" style="display:none;margin:0 16px 10px;border:1px solid var(--line);border-radius:10px;padding:12px;background:#fbfaf7">
+      <b id="pt-edit-title" style="font-size:13px">✏️ 取引先を編集</b>
+      <label class="f">名前 <b>*</b></label><input type="text" id="pe-name" maxlength="30">
+      <div class="row" style="margin-top:4px">
+        <div style="flex:0 0 130px"><label class="f">〒（ハイフン不要）</label><input type="text" id="pe-zip" maxlength="8"></div>
+        <div><label class="f">電話番号</label><input type="text" id="pe-tel" maxlength="13"></div>
+      </div>
+      <label class="f">住所</label><input type="text" id="pe-addr" maxlength="60">
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button onclick="savePartnerEdit()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">💾 保存</button>
+        <button onclick="closePartnerEdit()" style="background:var(--line);color:var(--ink);border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">キャンセル</button>
+      </div>
     </div>
     <div id="pt-list" style="overflow-y:auto;padding:0 16px 16px"></div>
   </div>
@@ -253,6 +267,7 @@ function unlink(){ LINKED=null; $("#linked-banner").style.display="none"; toast(
 // ---- 取引先マスタ（fax-desk GAS partners API） ----
 async function openPartnerModal(){
   $("#pt-modal").style.display="flex";
+  closePartnerEdit();
   $("#pt-search").value="";
   if(!PARTNERS){ await loadPartners(false); }
   renderPartnerList();
@@ -290,8 +305,56 @@ function renderPartnerList(){
   el.innerHTML=list.map(p=>{
     const idx=PARTNERS.indexOf(p);
     const sub=[p.method,p.addr].filter(Boolean).join("・");
-    return `<div class="hist-item" style="cursor:pointer" onclick="pickPartner(${idx})"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b>${sub?`<div class="meta">${esc(sub)}</div>`:""}</div><span style="color:var(--accent);font-size:12px">選択 ▸</span></div>`;
+    return `<div class="hist-item" style="cursor:pointer" onclick="pickPartner(${idx})"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b>${sub?`<div class="meta">${esc(sub)}</div>`:""}</div><span style="color:var(--accent);font-size:12px">選択 ▸</span><button onclick="event.stopPropagation();openPartnerEdit(${idx})" title="編集" style="background:none;border:1px solid var(--line);border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">✏️</button><button onclick="event.stopPropagation();deletePartner(${idx})" title="削除" style="background:none;border:1px solid var(--line);border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">🗑</button></div>`;
   }).join("");
+}
+// ---- 取引先の追加・編集・削除 ----
+let PT_EDIT=null; // null=閉 / {name:""}=新規 / {name:元の名前}=編集
+function openPartnerEdit(idx){
+  const p=(idx>=0&&PARTNERS)?PARTNERS[idx]:null;
+  PT_EDIT={name:p?p.name:""};
+  $("#pt-edit-title").textContent=p?"✏️ 取引先を編集":"➕ 取引先を追加";
+  $("#pe-name").value=p?p.name:($("#pt-search").value||"").trim();
+  $("#pe-zip").value=p?String(p.zip||"").replace(/[^0-9]/g,""):"";
+  $("#pe-tel").value=p?String(p.tel||""):"";
+  $("#pe-addr").value=p?String(p.addr||""):"";
+  $("#pt-edit").style.display="block";
+  $("#pe-name").focus();
+}
+function closePartnerEdit(){ PT_EDIT=null; $("#pt-edit").style.display="none"; }
+async function reloadPartners(){
+  PARTNERS=null; sessionStorage.removeItem("seinodesk_partners");
+  await loadPartners(true); renderPartnerList();
+}
+async function savePartnerEdit(){
+  if(!PT_EDIT) return;
+  const nm=$("#pe-name").value.trim();
+  if(!nm){ toast("名前を入力してください"); return; }
+  toast("保存中…");
+  try{
+    const r=await fetch(FAXDESK_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({email:CRED.email,pass:CRED.pass,action:"partneredit",
+        name:PT_EDIT.name||nm, newName:nm,
+        zip:$("#pe-zip").value.replace(/[^0-9]/g,""), tel:$("#pe-tel").value.trim(), addr:$("#pe-addr").value.trim()})});
+    const j=await r.json();
+    if(!j.ok){ toast("保存できませんでした: "+(j.error||"")); return; }
+    toast(j.created?"追加しました":"保存しました");
+    closePartnerEdit();
+    await reloadPartners();
+  }catch(e){ toast("通信エラー"); }
+}
+async function deletePartner(idx){
+  const p=PARTNERS&&PARTNERS[idx]; if(!p) return;
+  if(!confirm("「"+p.name+"」を取引先マスタから削除しますか？\n\n全ツール共通のマスタ（FAXデスクの宛名判定含む）から消えます。")) return;
+  toast("削除中…");
+  try{
+    const r=await fetch(FAXDESK_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({email:CRED.email,pass:CRED.pass,action:"partnerdelete",name:p.name})});
+    const j=await r.json();
+    if(!j.ok){ toast("削除できませんでした: "+(j.error||"")); return; }
+    toast("削除しました");
+    await reloadPartners();
+  }catch(e){ toast("通信エラー"); }
 }
 function pickPartner(idx){ // 空の項目は触らず、partnerに値がある欄だけ転記
   const p=PARTNERS[idx]; if(!p) return;
