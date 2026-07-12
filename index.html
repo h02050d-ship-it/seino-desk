@@ -21,8 +21,8 @@ body{font-family:"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;background:
 .sec:first-child{margin-top:0}
 label.f{display:block;font-size:12px;color:var(--muted);margin:10px 0 3px}
 label.f b{color:var(--warn)}
-input[type=text],input[type=number],input[type=date],input[type=email],input[type=password]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:15px;background:#fdfcfa}
-input:focus{outline:2px solid var(--accent);border-color:transparent}
+input[type=text],input[type=number],input[type=date],input[type=email],input[type=password],select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:15px;background:#fdfcfa}
+input:focus,select:focus{outline:2px solid var(--accent);border-color:transparent}
 .row{display:flex;gap:10px}
 .row>div{flex:1}
 .radio-line,.check-line{display:flex;gap:16px;align-items:center;padding:8px 2px;font-size:14px}
@@ -112,6 +112,14 @@ button.primary:disabled{opacity:.5;cursor:default}
       <div><label class="f">総重量 kg</label><input type="number" id="f-kg" min="1" placeholder="自動: 個口×20"></div>
     </div>
     <div class="hint">目安: 2m材=20kg／3m=30kg／4m=40kg（1個口あたり）× 個口数</div>
+    <label class="f">商品区分</label>
+    <select id="f-shohin">
+      <option value="0">一般</option>
+      <option value="1">宅配</option>
+      <option value="3">ミニ便（1個口・20kgまで）</option>
+      <option value="8">通販便</option>
+      <option value="9">ビジネス便</option>
+    </select>
     <div class="radio-line">
       <label><input type="radio" name="motochaku" value="1" checked> 元払</label>
       <label><input type="radio" name="motochaku" value="3"> 着払</label>
@@ -126,6 +134,83 @@ button.primary:disabled{opacity:.5;cursor:default}
         <label style="display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="f-print" checked> 🖨 会社PCで自動印刷</label>
       </div>
     </div>
+    <div class="sec" style="margin-top:18px">荷送人</div>
+    <div class="radio-line">
+      <label><input type="radio" name="sender" value="self" checked onchange="senderToggle()"> 林材木店（通常）</label>
+      <label><input type="radio" name="sender" value="other" onchange="senderToggle()"> 別の荷送人で出す（市場からの依頼など）</label>
+    </div>
+    <div class="tome-box" id="sender-box" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <b style="font-size:13px">荷送人情報</b><span style="flex:1"></span>
+        <button type="button" onclick="openPartnerModalFor('sender')" style="background:#e8721b;color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">📇 取引先から選択</button>
+      </div>
+      <label class="f" style="margin-top:0">荷送人名（20字）</label>
+      <input type="text" id="s-name" maxlength="20" placeholder="例: 磐田市場／〇〇木材">
+      <label class="f">住所1 都道府県+市区町村（20字）</label>
+      <input type="text" id="s-addr1" maxlength="20" placeholder="静岡県磐田市">
+      <label class="f">住所2 番地など（20字）</label>
+      <input type="text" id="s-addr2" maxlength="20" placeholder="〇〇町1-2-3">
+      <label class="f">電話（13字）</label>
+      <input type="text" id="s-tel" maxlength="13" placeholder="0538000000">
+      <div class="hint">運賃の請求は林材木店のまま。送り状の荷送人欄だけ変わります（発行前確認とPDFで確認できます）</div>
+    </div>
+
+    <details style="margin-top:16px">
+      <summary style="cursor:pointer;font-size:13px;color:var(--accent);padding:6px 0">⚙️ 詳細オプション（記事3〜5・輸送指示・保険など）</summary>
+      <div style="padding-top:8px">
+        <div class="row">
+          <div><label class="f">記事3（15字）</label><input type="text" id="f-kiji3" maxlength="15"></div>
+          <div><label class="f">記事4（15字）</label><input type="text" id="f-kiji4" maxlength="15"></div>
+        </div>
+        <label class="f">記事5（15字）</label><input type="text" id="f-kiji5" maxlength="15">
+        <label class="f">届け先名称2（30字）</label><input type="text" id="f-name2" maxlength="30">
+        <label class="f">届け先住所2（30字）</label><input type="text" id="f-addr2" maxlength="30">
+        <label class="f">部署名（15字）</label><input type="text" id="f-busho" maxlength="15">
+        <label class="f">輸送指示</label>
+        <select id="f-yuso" onchange="yusoToggle()">
+          <option value="">なし</option>
+          <option value="02">配達指定</option>
+          <option value="03">取扱注意</option>
+          <option value="04">われもの注意</option>
+          <option value="05">ガラス注意</option>
+          <option value="06">コワレモノ</option>
+          <option value="07">水濡れ注意</option>
+          <option value="08">精密機械</option>
+          <option value="09">下積厳禁</option>
+          <option value="10">横積厳禁</option>
+          <option value="11">平積厳禁</option>
+          <option value="12">立積厳禁</option>
+          <option value="13">天地無用</option>
+          <option value="14">角つき厳禁</option>
+          <option value="15">貴重品</option>
+          <option value="16">高価品</option>
+          <option value="17">予約</option>
+        </select>
+        <div class="hint">支店止めは上の🏢チェックを使ってください</div>
+        <div id="haitatsu-box" style="display:none">
+          <div class="row" style="margin-top:6px">
+            <div><label class="f">配達指定日</label><input type="date" id="f-haitatsu-date"></div>
+            <div><label class="f">時間帯</label>
+              <select id="f-haitatsu-kbn">
+                <option value="0">希望無</option>
+                <option value="1">午前</option>
+                <option value="2">午後</option>
+                <option value="8">まで</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <label class="f">保険金額（万円）</label><input type="number" id="f-hoken" min="0">
+        <label class="f">荷札印刷枚数</label><input type="number" id="f-nifuda" min="0" placeholder="自動: 個数-1">
+        <label class="f">重量（才）</label><input type="number" id="f-sai" min="0">
+        <div class="row" style="margin-top:4px">
+          <div><label class="f">代引 品代金税込</label><input type="number" id="f-daibiki-shina" min="0"></div>
+          <div><label class="f">代引 消費税</label><input type="number" id="f-daibiki-tax" min="0"></div>
+        </div>
+        <div class="hint">※代引はご契約が必要です</div>
+      </div>
+    </details>
+
     <button class="primary" id="btn-go" onclick="createOkurijo()">🚚 送り状を発行する</button>
 
     <div class="result" id="result">
@@ -135,6 +220,7 @@ button.primary:disabled{opacity:.5;cursor:default}
       <div class="btns">
         <a id="r-track" href="#" target="_blank">📍 追跡</a>
         <button onclick="pdfView(document.getElementById('r-no').textContent)">📄 送り状PDF</button>
+        <button onclick="pdfDownload(document.getElementById('r-no').textContent)">⬇️ PDF保存</button>
         <button onclick="resetForm()">➕ 続けて作成</button>
       </div>
       <div style="margin-top:8px">
@@ -155,13 +241,14 @@ button.primary:disabled{opacity:.5;cursor:default}
 <div id="pt-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:80;align-items:flex-start;justify-content:center;padding:40px 12px" onclick="if(event.target===this)closePartnerModal()">
   <div style="background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.2)">
     <div style="padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px">
-      <b style="font-size:15px">📇 取引先から選択</b>
+      <b id="pt-modal-title" style="font-size:15px">📇 取引先から選択</b>
       <span style="flex:1"></span>
       <button onclick="openPartnerEdit(-1)" style="background:#e8721b;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">➕ 追加</button>
       <button onclick="closePartnerModal()" style="background:var(--line);color:var(--ink);border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">✕ 閉じる</button>
     </div>
-    <div style="padding:10px 16px">
-      <input type="text" id="pt-search" placeholder="名前・住所で検索" oninput="renderPartnerList()">
+    <div style="padding:10px 16px;display:flex;gap:10px;align-items:center">
+      <input type="text" id="pt-search" placeholder="名前・住所で検索" oninput="renderPartnerList()" style="flex:1">
+      <label style="display:flex;gap:5px;align-items:center;font-size:12px;color:var(--muted);white-space:nowrap;cursor:pointer"><input type="checkbox" id="pt-show-hidden" onchange="renderPartnerList()" style="width:auto"> 非表示も表示</label>
     </div>
     <div id="pt-edit" style="display:none;margin:0 16px 10px;border:1px solid var(--line);border-radius:10px;padding:12px;background:#fbfaf7">
       <b id="pt-edit-title" style="font-size:13px">✏️ 取引先を編集</b>
@@ -177,6 +264,22 @@ button.primary:disabled{opacity:.5;cursor:default}
       </div>
     </div>
     <div id="pt-list" style="overflow-y:auto;padding:0 16px 16px"></div>
+  </div>
+</div>
+
+<!-- 削除方法の選択モーダル（pt-modalの上に重なる） -->
+<div id="pt-choice" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:120;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeChoice()">
+  <div style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,.3)">
+    <b id="pc-title" style="font-size:15px">この取引先をどうしますか？</b>
+    <button onclick="choiceHide()" style="width:100%;text-align:left;margin-top:14px;background:#eef4fb;border:1px solid var(--accent);border-radius:10px;padding:12px;cursor:pointer">
+      <div style="font-size:14px;font-weight:700;color:var(--accent)">🚫 西濃ツールで非表示（推奨）</div>
+      <div class="hint" style="margin-top:3px">修理業者など発送しない相手。全社マスタには残ります</div>
+    </button>
+    <button onclick="choiceDelete()" style="width:100%;text-align:left;margin-top:8px;background:#fff;border:1px solid var(--warn);border-radius:10px;padding:12px;cursor:pointer">
+      <div style="font-size:14px;font-weight:700;color:var(--warn)">🗑 マスタから完全削除</div>
+      <div class="hint" style="margin-top:3px">FAXデスクの宛名判定含む全ツールから消えます</div>
+    </button>
+    <button onclick="closeChoice()" style="width:100%;margin-top:8px;background:var(--line);color:var(--ink);border:none;border-radius:10px;padding:10px;font-size:13px;cursor:pointer">キャンセル</button>
   </div>
 </div>
 
@@ -222,6 +325,13 @@ function tomeToggle(){
   $("#tome-box").style.display=on?"block":"none";
   $("#addr-rows").style.display=on?"none":"block";
 }
+function senderToggle(){
+  const other=document.querySelector('input[name="sender"]:checked').value==="other";
+  $("#sender-box").style.display=other?"block":"none";
+}
+function yusoToggle(){
+  $("#haitatsu-box").style.display=($("#f-yuso").value==="02")?"block":"none";
+}
 // ---- order-desk連携（注文呼び出し） ----
 let LINKED=null; // {id, customer}
 async function loadCandidates(){
@@ -265,7 +375,11 @@ function pickCand(s){
 function unlink(){ LINKED=null; $("#linked-banner").style.display="none"; toast("連携を解除しました（手入力の内容で発行されます）"); }
 
 // ---- 取引先マスタ（fax-desk GAS partners API） ----
-async function openPartnerModal(){
+let PT_TARGET='dest'; // 'dest'=お届け先へ転記 / 'sender'=荷送人へ転記
+async function openPartnerModal(){ return openPartnerModalFor('dest'); }
+async function openPartnerModalFor(target){
+  PT_TARGET=(target==='sender')?'sender':'dest';
+  $("#pt-modal-title").textContent=(PT_TARGET==='sender')?"📇 荷送人を取引先から選択":"📇 取引先から選択";
   $("#pt-modal").style.display="flex";
   closePartnerEdit();
   $("#pt-search").value="";
@@ -273,7 +387,7 @@ async function openPartnerModal(){
   renderPartnerList();
   if(PARTNERS) $("#pt-search").focus();
 }
-function closePartnerModal(){ $("#pt-modal").style.display="none"; }
+function closePartnerModal(){ $("#pt-modal").style.display="none"; PT_TARGET='dest'; }
 async function loadPartners(force){
   if(!force){ // sessionStorageキャッシュ（30分TTL）
     try{
@@ -296,7 +410,9 @@ async function loadPartners(force){
 function renderPartnerList(){
   if(!PARTNERS){ return; }
   const q=($("#pt-search").value||"").trim().toLowerCase();
+  const showHidden=$("#pt-show-hidden")&&$("#pt-show-hidden").checked;
   const list=PARTNERS.filter(p=>{
+    if(p.seinoHidden && !showHidden) return false; // 非表示の取引先は通常隠す
     if(!q) return true;
     return ((p.name||"")+" "+(p.addr||"")+" "+(p.kana||"")).toLowerCase().includes(q);
   }).slice(0,300);
@@ -305,7 +421,10 @@ function renderPartnerList(){
   el.innerHTML=list.map(p=>{
     const idx=PARTNERS.indexOf(p);
     const sub=[p.method,p.addr].filter(Boolean).join("・");
-    return `<div class="hist-item" style="cursor:pointer" onclick="pickPartner(${idx})"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b>${sub?`<div class="meta">${esc(sub)}</div>`:""}</div><span style="color:var(--accent);font-size:12px">選択 ▸</span><button onclick="event.stopPropagation();openPartnerEdit(${idx})" title="編集" style="background:none;border:1px solid var(--line);border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">✏️</button><button onclick="event.stopPropagation();deletePartner(${idx})" title="削除" style="background:none;border:1px solid var(--line);border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">🗑</button></div>`;
+    if(p.seinoHidden){ // 非表示中の行（「非表示も表示」ON時のみ出る）
+      return `<div class="hist-item" style="opacity:.55"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b> <span class="mbadge other" style="background:var(--warn)">🚫非表示中</span>${sub?`<div class="meta">${esc(sub)}</div>`:""}</div><button onclick="event.stopPropagation();unhidePartner(${idx})" style="background:none;border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer">↩️ 表示に戻す</button></div>`;
+    }
+    return `<div class="hist-item" style="cursor:pointer" onclick="pickPartner(${idx})"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b>${sub?`<div class="meta">${esc(sub)}</div>`:""}</div><span style="color:var(--accent);font-size:12px">選択 ▸</span><button onclick="event.stopPropagation();openPartnerEdit(${idx})" title="編集" style="background:none;border:1px solid var(--line);border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">✏️</button><button onclick="event.stopPropagation();deletePartner(${idx})" title="削除/非表示" style="background:none;border:1px solid var(--line);border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">🗑</button></div>`;
   }).join("");
 }
 // ---- 取引先の追加・編集・削除 ----
@@ -343,21 +462,70 @@ async function savePartnerEdit(){
     await reloadPartners();
   }catch(e){ toast("通信エラー"); }
 }
-async function deletePartner(idx){
+// 🗑クリック→非表示 or 完全削除を選ぶモーダル
+let PT_CHOICE=null; // 対象の取引先名
+function deletePartner(idx){
   const p=PARTNERS&&PARTNERS[idx]; if(!p) return;
-  if(!confirm("「"+p.name+"」を取引先マスタから削除しますか？\n\n全ツール共通のマスタ（FAXデスクの宛名判定含む）から消えます。")) return;
-  toast("削除中…");
+  PT_CHOICE=p.name;
+  $("#pc-title").textContent="「"+p.name+"」をどうしますか？";
+  $("#pt-choice").style.display="flex";
+}
+function closeChoice(){ $("#pt-choice").style.display="none"; PT_CHOICE=null; }
+async function choiceHide(){ // 西濃ツールで非表示（マスタには残す）
+  const name=PT_CHOICE; if(!name) return;
+  closeChoice(); toast("非表示に設定中…");
   try{
     const r=await fetch(FAXDESK_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify({email:CRED.email,pass:CRED.pass,action:"partnerdelete",name:p.name})});
+      body:JSON.stringify({email:CRED.email,pass:CRED.pass,action:"partneredit",name:name,seinoHidden:"1"})});
+    const j=await r.json();
+    if(!j.ok){ toast("設定できませんでした: "+(j.error||"")); return; }
+    toast("非表示にしました");
+    await reloadPartners();
+  }catch(e){ toast("通信エラー"); }
+}
+async function choiceDelete(){ // マスタから完全削除
+  const name=PT_CHOICE; if(!name) return;
+  if(!confirm("「"+name+"」を取引先マスタから完全に削除しますか？\n\nFAXデスクの宛名判定含む全ツールから消えます。")) return;
+  closeChoice(); toast("削除中…");
+  try{
+    const r=await fetch(FAXDESK_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({email:CRED.email,pass:CRED.pass,action:"partnerdelete",name:name})});
     const j=await r.json();
     if(!j.ok){ toast("削除できませんでした: "+(j.error||"")); return; }
     toast("削除しました");
     await reloadPartners();
   }catch(e){ toast("通信エラー"); }
 }
+async function unhidePartner(idx){ // 非表示を解除（表示に戻す）
+  const p=PARTNERS&&PARTNERS[idx]; if(!p) return;
+  toast("表示に戻しています…");
+  try{
+    const r=await fetch(FAXDESK_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({email:CRED.email,pass:CRED.pass,action:"partneredit",name:p.name,seinoHidden:""})});
+    const j=await r.json();
+    if(!j.ok){ toast("戻せませんでした: "+(j.error||"")); return; }
+    toast("表示に戻しました");
+    await reloadPartners();
+  }catch(e){ toast("通信エラー"); }
+}
 function pickPartner(idx){ // 空の項目は触らず、partnerに値がある欄だけ転記
   const p=PARTNERS[idx]; if(!p) return;
+  if(PT_TARGET==='sender'){ // 荷送人欄へ転記（住所は住所1/住所2に分割）
+    if(p.name) $("#s-name").value=String(p.name).slice(0,20);
+    if(p.tel){ const t=String(p.tel).replace(/[^0-9]/g,""); if(t) $("#s-tel").value=t; }
+    if(p.addr){
+      const a=String(p.addr).trim();
+      const m=a.match(/^(.{2,3}[都道府県])?(.+?[市区町村郡])/);
+      let a1,a2;
+      if(m){ a1=(m[1]||"")+m[2]; a2=a.slice(a1.length); }
+      else { a1=a.slice(0,20); a2=a.slice(20); }
+      $("#s-addr1").value=a1.slice(0,20);
+      $("#s-addr2").value=a2.trim().slice(0,20);
+    }
+    closePartnerModal();
+    toast("荷送人に転記しました。内容を確認してください");
+    return;
+  }
   if(p.name) $("#f-name").value=p.name;
   if(p.zip){ const z=String(p.zip).replace(/[^0-9]/g,""); if(z) $("#f-zip").value=z; }
   if(p.addr) $("#f-addr").value=p.addr;
@@ -401,8 +569,12 @@ function zipAuto(){ // 〒7桁そろったら住所を自動入力（日本郵�
 }
 function resetForm(){
   LINKED=null; $("#linked-banner").style.display="none";
-  ["f-name","f-zip","f-addr","f-tel","f-kg","f-kiji1","f-kiji2","f-branch"].forEach(id=>{const e=document.getElementById(id);if(e)e.value="";});
+  ["f-name","f-zip","f-addr","f-tel","f-kg","f-kiji1","f-kiji2","f-branch",
+   "s-name","s-addr1","s-addr2","s-tel","f-kiji3","f-kiji4","f-kiji5","f-name2","f-addr2","f-busho",
+   "f-hoken","f-nifuda","f-sai","f-daibiki-shina","f-daibiki-tax","f-haitatsu-date"].forEach(id=>{const e=document.getElementById(id);if(e)e.value="";});
   $("#f-kosu").value=1; $("#f-tome").checked=false; tomeToggle();
+  $("#f-shohin").value="0"; $("#f-yuso").value=""; yusoToggle(); $("#f-haitatsu-kbn").value="0";
+  const sSelf=document.querySelector('input[name="sender"][value="self"]'); if(sSelf) sSelf.checked=true; senderToggle();
   $("#f-print").checked=true; $("#result").style.display="none";
   window.scrollTo({top:0,behavior:"smooth"}); $("#f-name").focus();
 }
@@ -418,29 +590,63 @@ async function createOkurijo(){
   const zip=$("#f-zip").value.trim(), addr=$("#f-addr").value.trim();
   const kosu=parseInt($("#f-kosu").value,10)||0;
   let kg=parseInt($("#f-kg").value,10)||0; if(!kg) kg=kosu*20;
+  const shohin=$("#f-shohin").value;
   if(!name){ toast("お届け先名を入力してください"); return; }
   if(!tel){ toast("電話番号を入力してください"); return; }
   if(tome && !OFFICES.includes(branch)){ toast("止め支店名を候補から選んでください"); return; }
   if(!tome && (!zip||!addr)){ toast("〒と住所を入力してください"); return; }
   if(kosu<1){ toast("個口数を入力してください"); return; }
+  if(shohin==="3" && (kosu>1||kg>20)){ toast("ミニ便は1個口・20kgまでです"); return; }
+  const yuso=$("#f-yuso").value;
+  const haitatsuDate=$("#f-haitatsu-date").value.replace(/-/g,"").slice(4); // YYYYMMDD→MMDD
+  if(yuso==="02" && !haitatsuDate){ toast("配達指定には配達指定日を入れてください"); return; }
+  if(tome && yuso==="02"){ toast("支店止めと配達指定は併用できません"); return; }
+  const senderOther=document.querySelector('input[name="sender"]:checked').value==="other";
+  const sName=senderOther?$("#s-name").value.trim():"";
   const motochaku=document.querySelector('input[name="motochaku"]:checked').value;
   const doPrint=$("#f-print").checked;
   const date=$("#f-date").value.replace(/-/g,"");
-  const msg="【西濃 送り状発行】🟢本番\n\n届け先: "+name+"\n"
+  const YUSO_LABEL={'02':'配達指定','03':'取扱注意','04':'われもの注意','05':'ガラス注意','06':'コワレモノ','07':'水濡れ注意','08':'精密機械','09':'下積厳禁','10':'横積厳禁','11':'平積厳禁','12':'立積厳禁','13':'天地無用','14':'角つき厳禁','15':'貴重品','16':'高価品','17':'予約'};
+  const SHOHIN_LABEL={'0':'一般','1':'宅配','3':'ミニ便','8':'通販便','9':'ビジネス便'};
+  const HKBN_LABEL={'0':'希望無','1':'午前','2':'午後','8':'まで'};
+  const hoken=parseInt($("#f-hoken").value,10)||0;
+  const dShina=parseInt($("#f-daibiki-shina").value,10)||0;
+  const dTax=parseInt($("#f-daibiki-tax").value,10);
+  let msg="【西濃 送り状発行】🟢本番\n\n届け先: "+name+"\n"
     +(tome?("止め: "+branch+"支店（住所は支店に自動設定）"):("〒"+zip+" "+addr))
-    +"\nTEL: "+tel+"\n個口: "+kosu+"個口 / "+kg+"kg / "+(motochaku==="3"?"着払":"元払")
-    +((($("#f-kiji1").value)||($("#f-kiji2").value))?("\n記事: "+$("#f-kiji1").value+" "+$("#f-kiji2").value):"")
-    +"\n出荷予定日: "+$("#f-date").value
+    +"\nTEL: "+tel+"\n個口: "+kosu+"個口 / "+kg+"kg / "+(motochaku==="3"?"着払":"元払");
+  if(sName) msg+="\n荷送人: "+sName+"（請求は林材木店）";
+  if(shohin!=="0") msg+="\n商品区分: "+(SHOHIN_LABEL[shohin]||shohin);
+  if(($("#f-kiji1").value)||($("#f-kiji2").value)) msg+="\n記事: "+$("#f-kiji1").value+" "+$("#f-kiji2").value;
+  if(yuso) msg+="\n輸送指示: "+(YUSO_LABEL[yuso]||yuso);
+  if(yuso==="02") msg+="\n配達指定: "+haitatsuDate.slice(0,2)+"/"+haitatsuDate.slice(2)+"（"+(HKBN_LABEL[$("#f-haitatsu-kbn").value]||"")+"）";
+  if(hoken>0) msg+="\n保険: "+hoken+"万円";
+  if(dShina>0 && !isNaN(dTax)) msg+="\n代引: 品代"+dShina+"円 / 税"+dTax+"円";
+  msg+="\n出荷予定日: "+$("#f-date").value
     +"\n印刷: "+(doPrint?"会社PCで自動印刷":"しない（登録のみ）")
     +"\n\nよろしいですか？";
   if(!confirm(msg)) return;
   $("#btn-go").disabled=true; toast("西濃へ登録中…");
+  const body={email:CRED.email,pass:CRED.pass,action:"seinocreate",
+    customer:name,zip:zip,addr:addr,tel:tel,kosu:kosu,juryoKg:kg,motochaku:motochaku,
+    tomeBranch:branch,kiji1:$("#f-kiji1").value.trim(),kiji2:$("#f-kiji2").value.trim(),
+    date:date,print:doPrint,shohinKbn:shohin};
+  if(sName){ body.niokurininName=sName; body.niokurininAddr1=$("#s-addr1").value.trim(); body.niokurininAddr2=$("#s-addr2").value.trim(); body.niokurininTel=$("#s-tel").value.trim(); }
+  const add=(k,v)=>{ if(v!==""&&v!=null) body[k]=v; };
+  add("kiji3",$("#f-kiji3").value.trim());
+  add("kiji4",$("#f-kiji4").value.trim());
+  add("kiji5",$("#f-kiji5").value.trim());
+  add("todokesakiName2",$("#f-name2").value.trim());
+  add("todokesakiAddress2",$("#f-addr2").value.trim());
+  add("bushoName",$("#f-busho").value.trim());
+  if(yuso) body.yusoShiji=yuso;
+  if(yuso==="02"){ body.haitatsuDate=haitatsuDate; body.haitatsuKbn=$("#f-haitatsu-kbn").value; }
+  if(hoken>0) body.hokenMoney=hoken;
+  const nifuda=parseInt($("#f-nifuda").value,10); if(!isNaN(nifuda)&&nifuda>0) body.nifudaPrintCount=nifuda;
+  const sai=parseInt($("#f-sai").value,10); if(!isNaN(sai)&&sai>0) body.juryoSai=sai;
+  if(dShina>0 && !isNaN(dTax)){ body.daibikiShina=dShina; body.daibikiTax=dTax; }
   try{
-    const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify({email:CRED.email,pass:CRED.pass,action:"seinocreate",
-        customer:name,zip:zip,addr:addr,tel:tel,kosu:kosu,juryoKg:kg,motochaku:motochaku,
-        tomeBranch:branch,kiji1:$("#f-kiji1").value.trim(),kiji2:$("#f-kiji2").value.trim(),
-        date:date,print:doPrint})});
+    const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});
     const j=await r.json();
     if(!j.ok){ toast("失敗: "+(j.error||"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; return; }
     $("#r-no").textContent=j.okurijoNo;
@@ -455,6 +661,11 @@ async function createOkurijo(){
 }
 async function issueLinked(){ // order-desk連携発行: seinoissue(番号がorder-deskに書き戻る・自動印刷)
   const c=LINKED;
+  // 手入力発行専用の項目（荷送人上書き・詳細オプション）は連携発行では使われない
+  const extras=(document.querySelector('input[name="sender"]:checked').value==="other"&&$("#s-name").value.trim())
+    || $("#f-yuso").value || $("#f-shohin").value!=="0"
+    || ["f-kiji3","f-kiji4","f-kiji5","f-name2","f-addr2","f-busho","f-hoken","f-nifuda","f-sai","f-daibiki-shina","f-daibiki-tax"].some(id=>String($("#"+id).value||"").trim());
+  if(extras) toast("注文連携発行では荷送人・詳細オプションは使われません");
   if(!confirm("【西濃 送り状発行】🟢本番・order-desk連携\n\n注文: "+c.customer+" 様\n\norder-deskの登録情報で出荷登録し、会社PCで自動印刷します。\n送り状番号はorder-deskにも保存されます。よろしいですか？")) return;
   $("#btn-go").disabled=true; toast("西濃へ登録中…");
   try{
@@ -472,15 +683,31 @@ async function issueLinked(){ // order-desk連携発行: seinoissue(番号がord
   }catch(e){ toast("通信エラー"); }
   $("#btn-go").disabled=false;
 }
+async function pdfBlob(no){ // seinopdf(base64)→Blob。失敗時null
+  const r=await fetch(API_URL+"?action=seinopdf&no="+encodeURIComponent(no)+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass));
+  const j=await r.json();
+  if(!j.ok||!j.pdf) return null;
+  const bin=atob(j.pdf); const arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return new Blob([arr],{type:"application/pdf"});
+}
 async function pdfView(no){
   toast("PDF取得中…");
   try{
-    const r=await fetch(API_URL+"?action=seinopdf&no="+encodeURIComponent(no)+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass));
-    const j=await r.json();
-    if(!j.ok||!j.pdf){ toast("PDFを取得できませんでした"); return; }
-    const bin=atob(j.pdf); const arr=new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
-    window.open(URL.createObjectURL(new Blob([arr],{type:"application/pdf"})),"_blank");
+    const blob=await pdfBlob(no);
+    if(!blob){ toast("PDFを取得できませんでした"); return; }
+    window.open(URL.createObjectURL(blob),"_blank");
+  }catch(e){ toast("通信エラー"); }
+}
+async function pdfDownload(no){ // 相手に「この内容で送ります」と渡す用にファイル保存
+  toast("PDF取得中…");
+  try{
+    const blob=await pdfBlob(no);
+    if(!blob){ toast("PDFを取得できませんでした"); return; }
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download="西濃送り状_"+no+".pdf";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    toast("PDFを保存しました");
   }catch(e){ toast("通信エラー"); }
 }
 // ---- history (localStorage) ----
@@ -489,7 +716,7 @@ function addHist(h){ const a=getHist(); a.unshift(h); localStorage.setItem("sein
 function renderHist(){
   const a=getHist(); const el=$("#hist");
   if(!a.length){ el.innerHTML='<div class="hint">まだありません</div>'; return; }
-  el.innerHTML=a.map(h=>`<div class="hist-item"><span class="no">${h.no}</span><span>${h.name} 様</span><span class="meta">${h.kosu}個口${h.tome?("・"+h.tome+"止め"):""}・${h.at}</span><span class="sp"></span><a href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${h.no}" target="_blank">追跡</a><a href="#" onclick="pdfView('${h.no}');return false;">PDF</a></div>`).join("");
+  el.innerHTML=a.map(h=>`<div class="hist-item"><span class="no">${h.no}</span><span>${h.name} 様</span><span class="meta">${h.kosu}個口${h.tome?("・"+h.tome+"止め"):""}・${h.at}</span><span class="sp"></span><a href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${h.no}" target="_blank">追跡</a><a href="#" onclick="pdfView('${h.no}');return false;">PDF</a><a href="#" onclick="pdfDownload('${h.no}');return false;" title="PDF保存">⬇</a></div>`).join("");
 }
 init();
 </script>
