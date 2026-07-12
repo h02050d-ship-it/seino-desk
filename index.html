@@ -299,7 +299,7 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","
 // ---- login ----
 function init(){
   const dl=$("#branches"); OFFICES.forEach(n=>{const o=document.createElement("option");o.value=n;dl.appendChild(o);});
-  $("#f-date").value=new Date().toISOString().slice(0,10);
+  var _d=new Date(); $("#f-date").value=new Date(_d.getTime()-_d.getTimezoneOffset()*60000).toISOString().slice(0,10); // ローカル日付（UTCだと朝9時前に前日になる）
   ["l-email","l-pass"].forEach(id=>{$("#"+id).addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});});
   const c=localStorage.getItem("seinodesk_cred");
   if(c){ CRED=JSON.parse(c); showMain(); }
