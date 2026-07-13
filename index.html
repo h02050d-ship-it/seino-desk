@@ -230,6 +230,21 @@ button.primary:disabled{opacity:.5;cursor:default}
     </div>
   </div>
 
+  <!-- 出荷の締め -->
+  <div class="card" id="shime-card" style="display:none">
+    <div class="sec">出荷の締め（西濃）</div>
+    <button class="primary" style="margin-top:6px;background:var(--ok)" onclick="shimeAll()">🏁 出荷一覧表 印刷＋FAX＋集荷依頼</button>
+    <div class="hint" style="margin-top:6px">当日分の出荷一覧表（商品受取書つき）を会社PCで印刷し、袋井支店へFAX、集荷依頼（当日16時／15時以降は翌営業日）まで一括で行います。</div>
+    <details style="margin-top:10px">
+      <summary style="font-size:12px;color:var(--muted);cursor:pointer">個別に実行（印刷だけ／FAXだけ／集荷だけ）</summary>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button onclick="shimePrint()" style="flex:1;min-width:140px;padding:10px;border:1px solid var(--line);background:#fff;border-radius:9px;font-size:13px;cursor:pointer">🖨 一覧表を印刷だけ</button>
+        <button onclick="shimeFax()" style="flex:1;min-width:140px;padding:10px;border:1px solid var(--line);background:#fff;border-radius:9px;font-size:13px;cursor:pointer">📠 FAXだけ</button>
+        <button onclick="shimePickup()" style="flex:1;min-width:140px;padding:10px;border:1px solid var(--line);background:#fff;border-radius:9px;font-size:13px;cursor:pointer">🚛 集荷依頼だけ</button>
+      </div>
+    </details>
+  </div>
+
   <!-- 履歴 -->
   <div class="card" id="hist-card" style="display:none">
     <div class="sec">このブラウザでの発行履歴（直近20件）</div>
@@ -316,7 +331,36 @@ async function doLogin(){
     else toast("メールまたはパスワードが違います");
   }catch(e){ toast("通信エラー"); }
 }
-function showMain(){ $("#login").style.display="none"; $("#main").style.display="block"; $("#hist-card").style.display="block"; $("#btn-logout").style.display="inline-block"; }
+function showMain(){ $("#login").style.display="none"; $("#main").style.display="block"; $("#shime-card").style.display="block"; $("#hist-card").style.display="block"; $("#btn-logout").style.display="inline-block"; }
+// ---- 出荷の締め（印刷/FAX/集荷） ----
+function gasGet(action){ return fetch(API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass)).then(r=>r.json()); }
+async function shimeAll(){
+  if(!confirm("🏁 出荷の締めを実行します。\n\n・出荷一覧表（商品受取書つき）を会社PCで印刷\n・出荷一覧表を西濃袋井支店へFAX送信（実FAX）\n・西濃へWeb集荷依頼（当日16時／15時以降は翌営業日）\n\nよろしいですか？")) return;
+  toast("実行中…");
+  try{
+    const p1=await gasGet("seinolistprint");
+    const p2=await gasGet("seinoefax");
+    const p3=await gasGet("seinopickupqueue");
+    alert("🖨 印刷: "+(p1.ok?"キュー済（1分以内に会社PCで出ます）":"失敗")
+      +"\n📠 FAX: "+(p2.ok?"送信しました":"失敗（"+(p2.error||"")+"）")
+      +"\n🚛 集荷: "+(p3.queued?("依頼キュー済 "+p3.kosu+"個口・"+p3.weightKg+"kg（1分以内に送信）"):("実行なし（"+(p3.error||"対象なし")+"）")));
+  }catch(e){ toast("通信エラー"); }
+}
+async function shimePrint(){
+  if(!confirm("🖨 当日の出荷一覧表（商品受取書つき）を会社PCで印刷します。よろしいですか？")) return;
+  toast("印刷キューに登録中…");
+  try{ const j=await gasGet("seinolistprint"); toast(j.ok?"✅ 1分以内に会社PCで印刷されます":"失敗"); }catch(e){ toast("通信エラー"); }
+}
+async function shimeFax(){
+  if(!confirm("📠 当日の出荷一覧表を西濃袋井支店へFAX送信します（実FAX）。よろしいですか？")) return;
+  toast("FAX送信中…");
+  try{ const j=await gasGet("seinoefax"); toast(j.ok?"✅ FAX送信しました":"失敗（"+(j.error||"")+"）"); }catch(e){ toast("通信エラー"); }
+}
+async function shimePickup(){
+  if(!confirm("🚛 西濃へWeb集荷依頼を送信します（当日16時希望／15時以降の実行は翌営業日16時）。よろしいですか？")) return;
+  toast("集荷依頼を登録中…");
+  try{ const j=await gasGet("seinopickupqueue"); toast(j.queued?("✅ 依頼キュー済 "+j.kosu+"個口・"+j.weightKg+"kg（1分以内に送信）"):("実行なし（"+(j.error||"対象なし")+"）")); }catch(e){ toast("通信エラー"); }
+}
 function logout(){ localStorage.removeItem("seinodesk_cred"); location.reload(); }
 
 // ---- form ----
