@@ -50,6 +50,19 @@ button.primary:disabled{opacity:.5;cursor:default}
 .mbadge.yahoo{background:#ff0033}
 .mbadge.ichiba{background:#2e7d32}
 .mbadge.other{background:#8a8378}
+.tabs{display:flex;gap:6px;margin-bottom:16px}
+.tabs button{flex:1;padding:11px;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:11px;font-size:14px;font-weight:600;cursor:pointer}
+.tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tabs button .cnt{display:inline-block;min-width:18px;padding:0 5px;margin-left:5px;background:#e8721b;color:#fff;border-radius:9px;font-size:11px;font-weight:700}
+.tabs button.active .cnt{background:#fff;color:var(--accent)}
+.tlist-item{display:flex;align-items:center;gap:8px;padding:10px 4px;border-bottom:1px solid var(--line);font-size:13px}
+.tlist-item .no{font-weight:600;color:var(--accent);font-size:12px}
+.tlist-item .meta{color:var(--muted);font-size:11px}
+.tlist-item .sp{flex:1}
+.tot-row{display:flex;gap:16px;padding:12px 4px;font-size:14px;font-weight:600}
+.tot-row b{color:var(--accent);font-size:18px}
+.shime-ind{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.shime-ind button{flex:1;min-width:140px;padding:11px;border:1px solid var(--line);background:#fff;border-radius:9px;font-size:13px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -72,8 +85,14 @@ button.primary:disabled{opacity:.5;cursor:default}
     <button class="primary" onclick="doLogin()">ログイン</button>
   </div>
 
+  <!-- タブ -->
+  <div class="tabs" id="tabs" style="display:none">
+    <button id="tab-btn-issue" class="active" onclick="switchTab('issue')">📝 送り状発行</button>
+    <button id="tab-btn-list" onclick="switchTab('list')">📋 出荷一覧表<span class="cnt" id="tab-cnt" style="display:none">0</span></button>
+  </div>
+
   <!-- 作成フォーム -->
-  <div class="card" id="main" style="display:none">
+  <div class="card tab-issue" id="main" style="display:none">
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
       <button class="hbtn" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer" onclick="loadCandidates()">📥 注文から呼び出し（order-desk）</button>
       <button class="hbtn" style="background:#e8721b;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer" onclick="openPartnerModal()">📇 取引先から選択</button>
@@ -231,22 +250,27 @@ button.primary:disabled{opacity:.5;cursor:default}
   </div>
 
   <!-- 出荷の締め -->
-  <div class="card" id="shime-card" style="display:none">
+  <!-- 出荷一覧表タブ：本日発送する一覧 -->
+  <div class="card tab-list" id="today-card" style="display:none">
+    <div class="sec" style="display:flex;align-items:center;gap:8px">📋 本日発送する出荷 <span id="today-date" class="hint" style="margin:0"></span><span style="flex:1"></span><button class="hbtn" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer" onclick="loadToday()">↻ 更新</button></div>
+    <div class="tot-row" id="today-tot" style="display:none"></div>
+    <div id="today-list"><div class="hint" style="padding:10px">読み込み中…</div></div>
+  </div>
+
+  <!-- 出荷一覧表タブ：出荷の締め -->
+  <div class="card tab-list" id="shime-card" style="display:none">
     <div class="sec">出荷の締め（西濃）</div>
     <button class="primary" style="margin-top:6px;background:var(--ok)" onclick="shimeAll()">🏁 出荷一覧表 印刷＋FAX＋集荷依頼</button>
     <div class="hint" style="margin-top:6px">当日分の出荷一覧表（商品受取書つき）を会社PCで印刷し、袋井支店へFAX、集荷依頼（当日16時／15時以降は翌営業日）まで一括で行います。</div>
-    <details style="margin-top:10px">
-      <summary style="font-size:12px;color:var(--muted);cursor:pointer">個別に実行（印刷だけ／FAXだけ／集荷だけ）</summary>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <button onclick="shimePrint()" style="flex:1;min-width:140px;padding:10px;border:1px solid var(--line);background:#fff;border-radius:9px;font-size:13px;cursor:pointer">🖨 一覧表を印刷だけ</button>
-        <button onclick="shimeFax()" style="flex:1;min-width:140px;padding:10px;border:1px solid var(--line);background:#fff;border-radius:9px;font-size:13px;cursor:pointer">📠 FAXだけ</button>
-        <button onclick="shimePickup()" style="flex:1;min-width:140px;padding:10px;border:1px solid var(--line);background:#fff;border-radius:9px;font-size:13px;cursor:pointer">🚛 集荷依頼だけ</button>
-      </div>
-    </details>
+    <div class="shime-ind">
+      <button onclick="shimePrint()">🖨 一覧表を印刷だけ</button>
+      <button onclick="shimeFax()">📠 FAXだけ</button>
+      <button onclick="shimePickup()">🚛 集荷依頼だけ</button>
+    </div>
   </div>
 
-  <!-- 履歴 -->
-  <div class="card" id="hist-card" style="display:none">
+  <!-- 発行タブ：履歴 -->
+  <div class="card tab-issue" id="hist-card" style="display:none">
     <div class="sec">このブラウザでの発行履歴（直近20件）</div>
     <div id="hist"></div>
   </div>
@@ -331,7 +355,36 @@ async function doLogin(){
     else toast("メールまたはパスワードが違います");
   }catch(e){ toast("通信エラー"); }
 }
-function showMain(){ $("#login").style.display="none"; $("#main").style.display="block"; $("#shime-card").style.display="block"; $("#hist-card").style.display="block"; $("#btn-logout").style.display="inline-block"; }
+function showMain(){ $("#login").style.display="none"; $("#tabs").style.display="flex"; $("#btn-logout").style.display="inline-block"; switchTab("issue"); loadToday(); }
+// ---- タブ切替 ----
+let CUR_TAB="issue";
+function switchTab(t){
+  CUR_TAB=t;
+  document.querySelectorAll(".tab-issue").forEach(e=>e.style.display=(t==="issue")?"block":"none");
+  document.querySelectorAll(".tab-list").forEach(e=>e.style.display=(t==="list")?"block":"none");
+  $("#tab-btn-issue").classList.toggle("active",t==="issue");
+  $("#tab-btn-list").classList.toggle("active",t==="list");
+  if(t==="list") loadToday();
+}
+function updateTodayBadge(n){ const b=$("#tab-cnt"); if(n>0){ b.textContent=n; b.style.display="inline-block"; } else b.style.display="none"; }
+async function loadToday(){
+  const el=$("#today-list");
+  el.innerHTML='<div class="hint" style="padding:10px">読み込み中…</div>';
+  try{
+    const j=await gasGet("seinotoday");
+    if(!j.ok){ el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; return; }
+    $("#today-date").textContent="（"+j.date.slice(0,4)+"/"+j.date.slice(4,6)+"/"+j.date.slice(6,8)+"）";
+    updateTodayBadge(j.count);
+    if(!j.count){ el.innerHTML='<div class="hint" style="padding:10px">本日発送する出荷はまだありません（送り状を発行すると表示されます）</div>'; $("#today-tot").style.display="none"; return; }
+    $("#today-tot").style.display="flex";
+    $("#today-tot").innerHTML=`<span>件数 <b>${j.count}</b>件</span><span>合計 <b>${j.kosu}</b>個口</span><span>総重量 <b>${j.weightKg}</b>kg</span>`;
+    const MB={rakuten:["楽天","rakuten"],yahoo:["Yahoo!","yahoo"],ichiba:["市場","ichiba"]};
+    el.innerHTML=j.list.map(x=>{
+      const m=(x.src==="desk")?["デスク","other"]:(MB[x.mall]||["その他","other"]);
+      return `<div class="tlist-item"><span class="mbadge ${m[1]}">${m[0]}</span><div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""}${x.notified?' <span class="badge">楽天通知済</span>':""}<div class="meta">${esc(x.item||"")}</div></div><div style="text-align:right;white-space:nowrap"><div class="meta">${x.kosu}個口・${x.weightKg}kg</div><a class="no" href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${x.okurijoNo}" target="_blank" style="text-decoration:none">${x.okurijoNo}</a></div></div>`;
+    }).join("");
+  }catch(e){ el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
+}
 // ---- 出荷の締め（印刷/FAX/集荷） ----
 function gasGet(action){ return fetch(API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass)).then(r=>r.json()); }
 async function shimeAll(){
@@ -720,6 +773,7 @@ async function createOkurijo(){
     $("#result").scrollIntoView({behavior:"smooth",block:"center"});
     addHist({no:j.okurijoNo,name:name,kosu:kosu,at:new Date().toISOString().slice(0,16).replace("T"," "),tome:j.tome||""});
     toast("✅ 発行しました: "+j.okurijoNo);
+    loadToday();
   }catch(e){ toast("通信エラー"); }
   $("#btn-go").disabled=false;
 }
@@ -744,6 +798,7 @@ async function issueLinked(){ // order-desk連携発行: seinoissue(番号がord
     addHist({no:j.okurijoNo,name:c.customer,kosu:parseInt($("#f-kosu").value,10)||1,at:new Date().toISOString().slice(0,16).replace("T"," "),tome:$("#f-tome").checked?$("#f-branch").value:""});
     toast("✅ 発行しました: "+j.okurijoNo);
     unlink();
+    loadToday();
   }catch(e){ toast("通信エラー"); }
   $("#btn-go").disabled=false;
 }
