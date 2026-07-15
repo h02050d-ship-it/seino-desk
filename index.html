@@ -261,7 +261,7 @@ button.primary:disabled{opacity:.5;cursor:default}
   <div class="card tab-list" id="shime-card" style="display:none">
     <div class="sec">出荷の締め（西濃）</div>
     <button class="primary" style="margin-top:6px;background:var(--ok)" onclick="shimeAll()">🏁 出荷一覧表 印刷＋FAX＋集荷依頼</button>
-    <div class="hint" style="margin-top:6px">当日分の出荷一覧表（商品受取書つき）を会社PCで印刷し、袋井支店へFAX、集荷依頼（当日16時／15時以降は翌営業日）まで一括で行います。</div>
+    <div class="hint" style="margin-top:6px">当日分の出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷し、袋井支店へFAX、集荷依頼（当日16時／15時以降は翌営業日）まで一括で行います。</div>
     <div class="shime-ind">
       <button onclick="shimePrint()">🖨 一覧表を印刷だけ</button>
       <button onclick="shimeFax()">📠 FAXだけ</button>
@@ -398,7 +398,7 @@ async function loadToday(){
 // ---- 出荷の締め（印刷/FAX/集荷） ----
 function gasGet(action){ return fetch(API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass)).then(r=>r.json()); }
 async function shimeAll(){
-  if(!confirm("🏁 出荷の締めを実行します。\n\n・出荷一覧表（商品受取書つき）を会社PCで印刷\n・出荷一覧表を西濃袋井支店へFAX送信（実FAX）\n・西濃へWeb集荷依頼（当日16時／15時以降は翌営業日）\n\nよろしいですか？")) return;
+  if(!confirm("🏁 出荷の締めを実行します。\n\n・出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷\n・出荷一覧表を西濃袋井支店へFAX送信（実FAX）\n・西濃へWeb集荷依頼（当日16時／15時以降は翌営業日）\n\nよろしいですか？")) return;
   toast("実行中…");
   try{
     const p1=await gasGet("seinolistprint");
@@ -410,7 +410,7 @@ async function shimeAll(){
   }catch(e){ toast("通信エラー"); }
 }
 async function shimePrint(){
-  if(!confirm("🖨 当日の出荷一覧表（商品受取書つき）を会社PCで印刷します。よろしいですか？")) return;
+  if(!confirm("🖨 当日の出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷します。よろしいですか？")) return;
   toast("印刷キューに登録中…");
   try{ const j=await gasGet("seinolistprint"); toast(j.ok?"✅ 1分以内に会社PCで印刷されます":"失敗"); }catch(e){ toast("通信エラー"); }
 }
