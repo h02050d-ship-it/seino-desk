@@ -422,7 +422,7 @@ async function shimeAll(){
   const ok=await uiConfirm(
     '<div style="font-size:15px;font-weight:700;margin-bottom:10px">🏁 出荷の締めを実行します</div>'
     +'<div style="background:#f0f7f3;border-radius:9px;padding:10px 12px;margin-bottom:12px">📦 本日の出荷 <b>'+t.count+'件</b>／合計 <b>'+t.kosu+'束</b>（'+t.kosu+'個口）／総重量 <b>'+t.weightKg+'kg</b><br><span style="color:var(--muted);font-size:12px">※荷物はまだ準備中（16時の集荷までに用意）</span></div>'
-    +'<div>・出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷<br>・出荷一覧表を西濃袋井支店へFAX送信（実FAX）<br>・西濃へWeb集荷依頼（16時集荷）</div>');
+    +'<div>・出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷<br>・出荷一覧表（荷主控え）を西濃袋井支店へFAX送信（実FAX）<br>・西濃へWeb集荷依頼（16時集荷）</div>');
   if(!ok) return;
   toast("実行中…");
   try{
@@ -430,7 +430,7 @@ async function shimeAll(){
     const p2=await gasGet("seinoefax");
     const p3=await gasGet("seinopickupqueue");
     alert("🖨 印刷: "+(p1.ok?"キュー済（1分以内に会社PCで出ます）":"失敗")
-      +"\n📠 FAX: "+(p2.ok?"送信しました":"失敗（"+(p2.error||"")+"）")
+      +"\n📠 FAX（荷主控え）: "+(p2.queued?"キュー済（1分以内に送信）":("失敗（"+(p2.error||"")+"）"))
       +"\n🚛 集荷: "+(p3.queued?("依頼キュー済 "+p3.kosu+"個口・"+p3.weightKg+"kg（1分以内に送信）"):("実行なし（"+(p3.error||"対象なし")+"）")));
   }catch(e){ toast("通信エラー"); }
 }
@@ -440,9 +440,9 @@ async function shimePrint(){
   try{ const j=await gasGet("seinolistprint"); toast(j.ok?"✅ 1分以内に会社PCで印刷されます":"失敗"); }catch(e){ toast("通信エラー"); }
 }
 async function shimeFax(){
-  if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">📠 出荷一覧表をFAX</div>当日の出荷一覧表を西濃袋井支店へFAX送信します（実FAX）。<br>よろしいですか？')) return;
-  toast("FAX送信中…");
-  try{ const j=await gasGet("seinoefax"); toast(j.ok?"✅ FAX送信しました":"失敗（"+(j.error||"")+"）"); }catch(e){ toast("通信エラー"); }
+  if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">📠 出荷一覧表をFAX</div>当日の出荷一覧表（<b>荷主控え</b>）を西濃袋井支店へFAX送信します（実FAX）。<br>よろしいですか？')) return;
+  toast("FAX依頼を登録中…");
+  try{ const j=await gasGet("seinoefax"); toast(j.queued?"✅ 1分以内に荷主控えをFAX送信します":("失敗（"+(j.error||"")+"）")); }catch(e){ toast("通信エラー"); }
 }
 async function shimePickup(){
   const t=TODAY_CACHE||{kosu:0,weightKg:0};
