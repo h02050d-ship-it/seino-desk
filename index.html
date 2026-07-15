@@ -271,7 +271,7 @@ button.primary:disabled{opacity:.5;cursor:default}
 
   <!-- 発行タブ：履歴 -->
   <div class="card tab-issue" id="hist-card" style="display:none">
-    <div class="sec">このブラウザでの発行履歴（直近20件）</div>
+    <div class="sec" style="display:flex;align-items:center;gap:8px">発行履歴（最近40件・全ツール共通）<span style="flex:1"></span><button class="hbtn" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer" onclick="loadServerHist()">↻ 更新</button></div>
     <div id="hist"></div>
   </div>
 </div>
@@ -355,7 +355,7 @@ async function doLogin(){
     else toast("メールまたはパスワードが違います");
   }catch(e){ toast("通信エラー"); }
 }
-function showMain(){ $("#login").style.display="none"; $("#tabs").style.display="flex"; $("#btn-logout").style.display="inline-block"; switchTab("issue"); loadToday(); }
+function showMain(){ $("#login").style.display="none"; $("#tabs").style.display="flex"; $("#btn-logout").style.display="inline-block"; switchTab("issue"); loadToday(); loadServerHist(); }
 // ---- タブ切替 ----
 let CUR_TAB="issue";
 function switchTab(t){
@@ -847,13 +847,27 @@ async function pdfDownload(no){ // 相手に「この内容で送ります」と
     toast("PDFを保存しました");
   }catch(e){ toast("通信エラー"); }
 }
-// ---- history (localStorage) ----
+// ---- history: サーバー実データ（全ツール横断）＋このブラウザのローカルをマージ ----
+let SERVER_HIST=[];
 function getHist(){ try{return JSON.parse(localStorage.getItem("seinodesk_hist")||"[]");}catch(e){return[];} }
 function addHist(h){ const a=getHist(); a.unshift(h); localStorage.setItem("seinodesk_hist",JSON.stringify(a.slice(0,20))); renderHist(); }
+async function loadServerHist(){
+  try{ const j=await gasGet("seinorecent"); if(j.ok&&Array.isArray(j.list)) SERVER_HIST=j.list; }catch(e){}
+  renderHist();
+}
+function fmtD(d){ return (d&&d.length===8)?(d.slice(0,4)+"-"+d.slice(4,6)+"-"+d.slice(6,8)):(d||""); }
 function renderHist(){
-  const a=getHist(); const el=$("#hist");
-  if(!a.length){ el.innerHTML='<div class="hint">まだありません</div>'; return; }
-  el.innerHTML=a.map(h=>`<div class="hist-item"><span class="no">${h.no}</span><span>${h.name} 様</span><span class="meta">${h.kosu}個口${h.tome?("・"+h.tome+"止め"):""}・${h.at}</span><span class="sp"></span><a href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${h.no}" target="_blank">追跡</a><a href="#" onclick="pdfView('${h.no}');return false;">PDF</a><a href="#" onclick="pdfDownload('${h.no}');return false;" title="PDF保存">⬇</a></div>`).join("");
+  const map={};
+  getHist().forEach(h=>{ map[h.no]={no:h.no, name:h.name, kosu:h.kosu, when:h.at, tome:h.tome||"", mall:h.mall||"", src:"local"}; });
+  SERVER_HIST.forEach(s=>{ const e=map[s.no]||{}; map[s.no]={no:s.no, name:e.name||s.customer, kosu:e.kosu||s.kosu, when:e.when||fmtD(s.date), tome:e.tome||s.tome||"", mall:s.mall||e.mall||"", src:s.src}; });
+  const list=Object.values(map).sort((a,b)=>String(b.when).localeCompare(String(a.when))||String(b.no).localeCompare(String(a.no)));
+  const el=$("#hist");
+  if(!list.length){ el.innerHTML='<div class="hint">まだありません</div>'; return; }
+  const MB={rakuten:["楽天","rakuten"],yahoo:["Yahoo!","yahoo"],ichiba:["市場","ichiba"]};
+  el.innerHTML=list.slice(0,40).map(h=>{
+    const m=(h.mall&&MB[h.mall])?MB[h.mall]:((h.src==="desk"||h.src==="local")?["デスク","other"]:["その他","other"]);
+    return `<div class="hist-item"><span class="mbadge ${m[1]}">${m[0]}</span><span class="no">${h.no}</span><span>${esc(h.name||"")} 様</span><span class="meta">${h.kosu}個口${h.tome?("・"+esc(h.tome)+"止め"):""}${h.when?("・"+h.when):""}</span><span class="sp"></span><a href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${h.no}" target="_blank">追跡</a><a href="#" onclick="pdfView('${h.no}');return false;">PDF</a><a href="#" onclick="pdfDownload('${h.no}');return false;" title="PDF保存">⬇</a></div>`;
+  }).join("");
 }
 init();
 </script>
