@@ -386,9 +386,10 @@ function renderToday(j){
   $("#today-tot").style.display="flex";
   $("#today-tot").innerHTML=`<span>件数 <b>${j.count}</b>件</span><span>合計 <b>${j.kosu}</b>個口</span><span>総重量 <b>${j.weightKg}</b>kg</span>`;
   const MB={rakuten:["楽天","rakuten"],yahoo:["Yahoo!","yahoo"],ichiba:["市場","ichiba"]};
-  el.innerHTML=j.list.map(x=>{
+  const warn=j.has1m?'<div style="background:#fff4e5;border-left:4px solid #e8721b;border-radius:8px;padding:9px 12px;font-size:12px;color:#a06414;margin-bottom:8px">⚠️ 1m以下の材が含まれています。<b>その分の重量は未確定</b>なので、送り状・集荷の総重量を実際の重さで確認してください（1m以下の重量ルールは今後設定）。</div>':"";
+  el.innerHTML=warn+j.list.map(x=>{
     const m=(x.src==="desk")?["デスク","other"]:(MB[x.mall]||["その他","other"]);
-    return `<div class="tlist-item"><span class="mbadge ${m[1]}">${m[0]}</span><div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""}${x.notified?' <span class="badge">楽天通知済</span>':""}<div class="meta">${esc(x.item||"")}</div></div><div style="text-align:right;white-space:nowrap"><div class="meta">${x.kosu}個口・${x.weightKg}kg</div><a class="no" href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${x.okurijoNo}" target="_blank" style="text-decoration:none">${x.okurijoNo}</a></div></div>`;
+    return `<div class="tlist-item"><span class="mbadge ${m[1]}">${m[0]}</span><div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""}${x.w1m?' <span class="mbadge other" style="background:#e8721b">⚠️重量要確認</span>':""}${x.notified?' <span class="badge">楽天通知済</span>':""}<div class="meta">${esc(x.item||"")}</div></div><div style="text-align:right;white-space:nowrap"><div class="meta">${x.kosu}個口・${x.weightKg}kg${x.w1m?"?":""}</div><a class="no" href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${x.okurijoNo}" target="_blank" style="text-decoration:none">${x.okurijoNo}</a></div></div>`;
   }).join("");
 }
 // キャッシュ即表示＋裏で更新（stale-while-revalidate）。ログイン時に先読みするのでタブ切替は一瞬
