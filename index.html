@@ -478,8 +478,8 @@ function renderNotify(st){
   if(c.yahoo) btns+=`<button onclick="notifyMark('yahoo')" style="width:100%;padding:11px;margin-top:8px;border:1px solid #7b1fa2;background:#fff;color:#7b1fa2;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟣 ヤフーは手動で通知した（${c.yahoo}件・消す）</button>`;
   if(c.ichiba) btns+=`<button onclick="notifyMark('ichiba')" style="width:100%;padding:11px;margin-top:8px;border:1px solid #e8721b;background:#fff;color:#c85d0e;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🏪 市場は連絡した（${c.ichiba}件・消す）</button>`;
   $("#notify-body").innerHTML=
-    `<div style="font-size:16px;font-weight:800;margin-bottom:4px">📢 発送通知がまだの注文があります</div>`
-    +`<div style="font-size:12.5px;color:#a06414;background:#fff4e5;border-left:4px solid #e8721b;border-radius:8px;padding:8px 11px;margin:8px 0 12px">出荷手続きは完了しました。<b>楽天・ヤフー・市場の発送通知</b>がまだのものが <b>${st.count}件</b> あります。忘れずに処理してください（15:30時点で残っていると大樹さんへLINE通知＋タスク登録します）。</div>`
+    `<div style="font-size:16px;font-weight:800;margin-bottom:4px">📢 楽天の発送通知がまだです</div>`
+    +`<div style="font-size:12.5px;color:#a06414;background:#fff4e5;border-left:4px solid #e8721b;border-radius:8px;padding:8px 11px;margin:8px 0 12px">出荷手続きは完了しました。<b>楽天の発送通知</b>がまだのものが <b>${st.count}件</b> あります。下のボタンで今すぐ送信できます（15:30時点で残っていると大樹さんへLINE通知＋タスク登録します）。</div>`
     +`<div style="margin-bottom:6px">${rows}</div>`
     +btns
     +`<button onclick="closeNotify()" style="width:100%;padding:11px;margin-top:10px;border:1px solid var(--line);background:#fff;color:#555;border-radius:10px;font-size:14px;cursor:pointer">後で（閉じる）</button>`;
