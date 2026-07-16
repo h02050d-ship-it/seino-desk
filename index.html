@@ -252,7 +252,7 @@ button.primary:disabled{opacity:.5;cursor:default}
   <!-- 出荷の締め -->
   <!-- 出荷一覧表タブ：本日発送する一覧 -->
   <div class="card tab-list" id="today-card" style="display:none">
-    <div class="sec" style="display:flex;align-items:center;gap:8px">📋 本日発送する出荷 <span id="today-date" class="hint" style="margin:0"></span><span style="flex:1"></span><button class="hbtn" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer" onclick="loadToday()">↻ 更新</button></div>
+    <div class="sec" style="display:flex;align-items:center;gap:8px">📋 本日発送する出荷 <span id="today-date" class="hint" style="margin:0"></span><span style="flex:1"></span><button class="hbtn" style="background:#fff;color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer" onclick="km2Sync()">🔄 KM2と照合</button><button class="hbtn" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer" onclick="loadToday()">↻ 更新</button></div>
     <div class="tot-row" id="today-tot" style="display:none"></div>
     <div id="today-list"><div class="hint" style="padding:10px">読み込み中…</div></div>
   </div>
@@ -393,7 +393,7 @@ function renderToday(j){
   const MB={rakuten:["楽天","rakuten"],yahoo:["Yahoo!","yahoo"],ichiba:["市場","ichiba"]};
   const warn=j.has1m?'<div style="background:#fff4e5;border-left:4px solid #e8721b;border-radius:8px;padding:9px 12px;font-size:12px;color:#a06414;margin-bottom:8px">⚠️ 1m以下の材が含まれています。<b>その分の重量は未確定</b>なので、送り状・集荷の総重量を実際の重さで確認してください（1m以下の重量ルールは今後設定）。</div>':"";
   el.innerHTML=warn+j.list.map(x=>{
-    const m=(x.src==="desk")?["デスク","other"]:(MB[x.mall]||["その他","other"]);
+    const m=(x.src==="desk")?["デスク","other"]:(x.src==="km2")?["KM2","other"]:(MB[x.mall]||["その他","other"]);
     return `<div class="tlist-item"><span class="mbadge ${m[1]}">${m[0]}</span><div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""}${x.w1m?' <span class="mbadge other" style="background:#e8721b">⚠️重量要確認</span>':""}${x.notified?' <span class="badge">楽天通知済</span>':""}<div class="meta">${esc(x.item||"")}</div></div><div style="text-align:right;white-space:nowrap"><div class="meta">${x.kosu}個口・${x.weightKg}kg${x.w1m?"?":""}</div><a class="no" href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${x.okurijoNo}" target="_blank" style="text-decoration:none">${x.okurijoNo}</a></div></div>`;
   }).join("");
 }
@@ -500,6 +500,23 @@ async function notifyRakuten(){
 async function notifyMark(mall){
   try{ const j=await gasGet2("seinomarknotified","mall="+mall); toast(j.ok?("✅ "+(mall==='yahoo'?'ヤフー':'市場')+" "+j.marked+"件を通知済みにしました"):"失敗"); }catch(e){ toast("通信エラー"); }
   await refreshNotify();
+}
+// ---- KM2と照合: カンガルーマジック画面から直接登録した出荷を一覧に取り込む ----
+async function km2Sync(){
+  if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">🔄 KM2と照合</div>カンガルーマジック（KM2）に登録済みの当日出荷を出荷一覧表データから取得し、この一覧に取り込みます。<br><br><span style="font-size:12px;color:var(--muted)">・KM2画面から直接登録した分の漏れを防ぎます<br>・KM2側は「出荷確定」扱いになります（印刷は後からでも再印刷で全件出ます）</span>')) return;
+  toast("照合を依頼しました（1分以内に反映）…");
+  try{
+    const j=await gasGet("seinoreconqueue");
+    if(!j.queued){ toast("依頼に失敗しました"); return; }
+    // watcherの処理(最大60秒)を待って自動更新
+    let before=(TODAY_CACHE&&TODAY_CACHE.count)||0;
+    for(let i=0;i<8;i++){
+      await new Promise(r=>setTimeout(r,12000));
+      const t=await gasGet("seinotoday");
+      if(t.ok){ TODAY_CACHE=t; renderToday(t); if(t.count!==before){ toast("✅ 照合完了: "+t.count+"件になりました"); return; } }
+    }
+    toast("照合処理済み（件数変化なし＝漏れはありませんでした）");
+  }catch(e){ toast("通信エラー"); }
 }
 function logout(){ localStorage.removeItem("seinodesk_cred"); location.reload(); }
 
