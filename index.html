@@ -259,7 +259,7 @@ button.primary:disabled{opacity:.5;cursor:default}
 
   <!-- 出荷一覧表タブ：出荷の締め -->
   <div class="card tab-list" id="shime-card" style="display:none">
-    <div class="sec">出荷の締め（西濃）</div>
+    <div class="sec" style="display:flex;align-items:center;gap:8px">出荷の締め（西濃）<span style="flex:1"></span><span id="shime-status" style="display:flex;gap:6px"></span></div>
     <button class="primary" style="margin-top:6px;background:var(--ok)" onclick="shimeAll()">🏁 出荷一覧表 印刷＋FAX＋集荷依頼</button>
     <div class="hint" style="margin-top:6px">当日分の出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷し、袋井支店へFAX、集荷依頼（16時集荷）まで一括で行います。</div>
     <div class="shime-ind">
@@ -383,10 +383,25 @@ function switchTab(t){
 }
 function updateTodayBadge(n){ const b=$("#tab-cnt"); if(n>0){ b.textContent=n; b.style.display="inline-block"; } else b.style.display="none"; }
 let TODAY_CACHE=null;
+function renderShime(j){
+  const s=j.shime; const el=$("#shime-status"); if(!el) return;
+  if(!s){ el.innerHTML=""; return; }
+  const chip=(label,st)=>{
+    if(st.done)   return `<span style="background:#e6f4ea;color:#1e7e34;border:1px solid #b7e1c0;border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">${label} ✅済み</span>`;
+    if(st.queued) return `<span style="background:#fff4e5;color:#a06414;border:1px solid #f0d9b0;border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">${label} ⏳処理中</span>`;
+    return `<span style="background:#f3f2ee;color:#999;border:1px solid #e4e2da;border-radius:20px;padding:3px 10px;font-size:11.5px">${label} 未</span>`;
+  };
+  el.innerHTML=chip("🖨印刷",s.print)+chip("📠FAX",s.fax)+chip("🚛集荷",s.pickup);
+  // 処理中があれば30秒後に自動再取得（済みへの切替を拾う）
+  if((s.print.queued||s.fax.queued||s.pickup.queued) && !renderShime._t){
+    renderShime._t=setTimeout(()=>{ renderShime._t=null; loadToday(); },30000);
+  }
+}
 function renderToday(j){
   const el=$("#today-list");
   $("#today-date").textContent="（"+j.date.slice(0,4)+"/"+j.date.slice(4,6)+"/"+j.date.slice(6,8)+"）";
   updateTodayBadge(j.count);
+  renderShime(j);
   if(!j.count){ el.innerHTML='<div class="hint" style="padding:10px">本日発送する出荷はまだありません（送り状を発行すると表示されます）</div>'; $("#today-tot").style.display="none"; return; }
   $("#today-tot").style.display="flex";
   $("#today-tot").innerHTML=`<span>件数 <b>${j.count}</b>件</span><span>合計 <b>${j.kosu}</b>個口</span><span>総重量 <b>${j.weightKg}</b>kg</span>`;
@@ -438,18 +453,19 @@ async function shimeAll(){
     alert("🖨 印刷: "+(p1.ok?"キュー済（1分以内に会社PCで出ます）":"失敗")
       +"\n📠 FAX（荷主控え）: "+(p2.queued?"キュー済（1分以内に送信）":("失敗（"+(p2.error||"")+"）"))
       +"\n🚛 集荷: "+(p3.queued?("依頼キュー済 "+p3.kosu+"個口・"+p3.weightKg+"kg（1分以内に送信）"):("実行なし（"+(p3.error||"対象なし")+"）")));
+    loadToday();             // 締めステータス（⏳処理中→✅済み）を反映
     notifyReminderPopup();   // 楽天/ヤフー/市場の発送通知リマインド
   }catch(e){ toast("通信エラー"); }
 }
 async function shimePrint(){
   if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">🖨 出荷一覧表を印刷</div>当日の出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷します。<br>よろしいですか？')) return;
   toast("印刷キューに登録中…");
-  try{ const j=await gasGet("seinolistprint"); toast(j.ok?"✅ 1分以内に会社PCで印刷されます":"失敗"); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
+  try{ const j=await gasGet("seinolistprint"); toast(j.ok?"✅ 1分以内に会社PCで印刷されます":"失敗"); loadToday(); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
 }
 async function shimeFax(){
   if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">📠 出荷一覧表をFAX</div>当日の出荷一覧表（<b>荷主控え</b>）を西濃袋井支店へFAX送信します（実FAX）。<br>よろしいですか？')) return;
   toast("FAX依頼を登録中…");
-  try{ const j=await gasGet("seinoefax"); toast(j.queued?"✅ 1分以内に荷主控えをFAX送信します":("失敗（"+(j.error||"")+"）")); }catch(e){ toast("通信エラー"); }
+  try{ const j=await gasGet("seinoefax"); toast(j.queued?"✅ 1分以内に荷主控えをFAX送信します":("失敗（"+(j.error||"")+"）")); loadToday(); }catch(e){ toast("通信エラー"); }
 }
 async function shimePickup(){
   const t=TODAY_CACHE||{kosu:0,weightKg:0};
@@ -458,7 +474,7 @@ async function shimePickup(){
     +'<div style="background:#f0f7f3;border-radius:9px;padding:10px 12px;margin-bottom:10px">合計 <b>'+t.kosu+'束</b>（'+t.kosu+'個口）／総重量 <b>'+t.weightKg+'kg</b><br><span style="color:var(--muted);font-size:12px">※荷物はまだ準備中（16時の集荷までに用意）</span></div>'
     +'16時集荷でよろしいですか？')) return;
   toast("集荷依頼を登録中…");
-  try{ const j=await gasGet("seinopickupqueue"); toast(j.queued?("✅ 依頼キュー済 "+j.kosu+"個口・"+j.weightKg+"kg（1分以内に送信）"):("実行なし（"+(j.error||"対象なし")+"）")); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
+  try{ const j=await gasGet("seinopickupqueue"); toast(j.queued?("✅ 依頼キュー済 "+j.kosu+"個口・"+j.weightKg+"kg（1分以内に送信）"):("実行なし（"+(j.error||"対象なし")+"）")); loadToday(); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
 }
 // ---- 発送通知リマインド（楽天/ヤフー/市場）ポップアップ ----
 function gasGet2(action, extra){ let u=API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass); if(extra) u+="&"+extra; return fetch(u).then(r=>r.json()); }
