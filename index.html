@@ -399,22 +399,36 @@ function renderShime(j){
   }
 }
 // 集荷依頼の送信内容プレビュー（pickup.ps1が西濃の公開フォームへ送る実際の値と同じ組み立て）
+let PICKUP_AUTO_BIKO="";   // 直近の自動文面（編集判定用: これと同じなら未編集扱い）
+function pickupAutoBiko(j){ return (j.breakdown?j.breakdown+" / ":"")+"合計重量"+(j.weightKg||0)+"kg / 商品準備中"; }
 function renderPickupInfo(j){
   const el=$("#pickup-info"); if(!el) return;
   if(!j.count){ el.style.display="none"; return; }
   el.style.display="block";
   const w=j.weightKg||0;
   const bucket=w<=20?"２０Kgまで":w<=40?"４０Kgまで":w<=60?"６０Kgまで":w<=80?"８０Kgまで":w<=100?"１００Kgまで":"１００Kg以上";
-  const biko=(j.breakdown?j.breakdown+" ／ ":"")+"合計重量"+w+"kg ／ 商品は準備中です(16時にご用意・早めの集荷はご遠慮ください)";
-  const row=(k,v)=>`<div style="display:flex;gap:8px"><span style="min-width:110px;color:#999;flex-shrink:0">${k}</span><span style="color:var(--ink)">${v}</span></div>`;
+  const autoBiko=pickupAutoBiko(j);
+  // 再描画で編集中の備考を消さない（自動文面のままなら新しい自動文面に追従）
+  const prev=$("#biko-input"), prevVal=prev?prev.value:null;
+  const keepEdit=(prevVal!==null && prevVal.trim()!=="" && prevVal!==PICKUP_AUTO_BIKO);
+  const row=(k,v)=>`<div style="display:flex;gap:8px"><span style="min-width:110px;color:#999;flex-shrink:0">${k}</span><span style="color:var(--ink);flex:1;min-width:0">${v}</span></div>`;
   el.innerHTML=
     `<div style="font-weight:700;font-size:12.5px;color:var(--ink);margin-bottom:5px">🚛 集荷依頼はこの内容で送信されます</div>`
     +row("引き渡し日時","本日16時頃（<b>15時までの依頼</b>で当日集荷／15時以降は翌営業日16時）")
     +row("個数・総重量",`<b>${j.kosu}個口</b>・<b>${w}kg</b>（フォーム区分: ${bucket}）`)
     +row("品名・荷姿","木材")
-    +row("備考",esc(biko))
+    +row("備考（編集可）",`<textarea id="biko-input" maxlength="200" style="width:100%;min-height:48px;border:1px solid #ddd9cd;border-radius:8px;padding:7px 9px;font-size:12px;line-height:1.7;font-family:inherit;color:var(--ink);background:#fff;resize:vertical">${esc(autoBiko)}</textarea><div style="display:flex;justify-content:space-between;margin-top:2px"><span style="color:#bbb;font-size:10.5px">全角200文字まで・集荷依頼ボタンを押した時のこの内容が送信されます</span><a href="javascript:void(0)" onclick="resetBiko()" style="color:var(--accent);font-size:11px;white-space:nowrap">↩ 自動文面に戻す</a></div>`)
     +row("集荷店・場所","西濃運輸 袋井支店 → 当社（磐田市福田5490-47）")
     +`<div style="color:#999;font-size:11px;margin-top:4px">※総重量100kg超はフォーム仕様で「100Kg以上」となるため、実重量は備考欄で西濃へ伝えています（受付確認メールに備考は表示されませんが届いています）</div>`;
+  if(keepEdit) $("#biko-input").value=prevVal;
+  PICKUP_AUTO_BIKO=autoBiko;
+}
+function resetBiko(){ const t=$("#biko-input"); if(t){ t.value=PICKUP_AUTO_BIKO; toast("自動文面に戻しました"); } }
+// 送信する備考: 未編集(=自動文面のまま/空)なら '' を返し、watcher側が最新合計で自動組み立て
+function pickupBikoParam(){
+  const t=$("#biko-input"); if(!t) return "";
+  const v=t.value.trim();
+  return (v && v!==PICKUP_AUTO_BIKO) ? v : "";
 }
 function renderToday(j){
   const el=$("#today-list");
@@ -469,7 +483,7 @@ async function shimeAll(){
   try{
     const p1=await gasGet("seinolistprint");
     const p2=await gasGet("seinoefax");
-    const p3=await gasGet("seinopickupqueue");
+    const p3=await gasGet2("seinopickupqueue","biko="+encodeURIComponent(pickupBikoParam()));
     alert("🖨 印刷: "+(p1.ok?"キュー済（1分以内に会社PCで出ます）":"失敗")
       +"\n📠 FAX（荷主控え）: "+(p2.queued?"キュー済（1分以内に送信）":("失敗（"+(p2.error||"")+"）"))
       +"\n🚛 集荷: "+(p3.queued?("依頼キュー済 "+p3.kosu+"個口・"+p3.weightKg+"kg（1分以内に送信）"):("実行なし（"+(p3.error||"対象なし")+"）")));
@@ -489,12 +503,13 @@ async function shimeFax(){
 }
 async function shimePickup(){
   const t=TODAY_CACHE||{kosu:0,weightKg:0};
+  const bk=pickupBikoParam();
   if(!await uiConfirm(
     '<div style="font-size:15px;font-weight:700;margin-bottom:10px">🚛 西濃へWeb集荷依頼</div>'
-    +'<div style="background:#f0f7f3;border-radius:9px;padding:10px 12px;margin-bottom:10px">合計 <b>'+t.kosu+'束</b>（'+t.kosu+'個口）／総重量 <b>'+t.weightKg+'kg</b><br><span style="color:var(--muted);font-size:12px">※荷物はまだ準備中（16時の集荷までに用意）</span></div>'
+    +'<div style="background:#f0f7f3;border-radius:9px;padding:10px 12px;margin-bottom:10px">合計 <b>'+t.kosu+'束</b>（'+t.kosu+'個口）／総重量 <b>'+t.weightKg+'kg</b><br><span style="color:var(--muted);font-size:12px">備考: '+esc(bk||pickupAutoBiko(t))+(bk?'（編集済み）':'')+'</span></div>'
     +'16時集荷でよろしいですか？')) return;
   toast("集荷依頼を登録中…");
-  try{ const j=await gasGet("seinopickupqueue"); toast(j.queued?("✅ 依頼キュー済 "+j.kosu+"個口・"+j.weightKg+"kg（1分以内に送信）"):("実行なし（"+(j.error||"対象なし")+"）")); loadToday(); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
+  try{ const j=await gasGet2("seinopickupqueue","biko="+encodeURIComponent(bk)); toast(j.queued?("✅ 依頼キュー済 "+j.kosu+"個口・"+j.weightKg+"kg（1分以内に送信）"):("実行なし（"+(j.error||"対象なし")+"）")); loadToday(); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
 }
 // ---- 発送通知リマインド（楽天/ヤフー/市場）ポップアップ ----
 function gasGet2(action, extra){ let u=API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass); if(extra) u+="&"+extra; return fetch(u).then(r=>r.json()); }
