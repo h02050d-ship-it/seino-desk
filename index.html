@@ -267,6 +267,7 @@ button.primary:disabled{opacity:.5;cursor:default}
       <button onclick="shimeFax()">📠 FAXだけ</button>
       <button onclick="shimePickup()">🚛 集荷依頼だけ</button>
     </div>
+    <div id="pickup-info" style="display:none;margin-top:12px;background:#f7f6f2;border:1px solid #e7e4db;border-radius:10px;padding:11px 13px;font-size:12px;line-height:1.9;color:#555"></div>
   </div>
 
   <!-- 発行タブ：履歴 -->
@@ -397,11 +398,30 @@ function renderShime(j){
     renderShime._t=setTimeout(()=>{ renderShime._t=null; loadToday(); },30000);
   }
 }
+// 集荷依頼の送信内容プレビュー（pickup.ps1が西濃の公開フォームへ送る実際の値と同じ組み立て）
+function renderPickupInfo(j){
+  const el=$("#pickup-info"); if(!el) return;
+  if(!j.count){ el.style.display="none"; return; }
+  el.style.display="block";
+  const w=j.weightKg||0;
+  const bucket=w<=20?"２０Kgまで":w<=40?"４０Kgまで":w<=60?"６０Kgまで":w<=80?"８０Kgまで":w<=100?"１００Kgまで":"１００Kg以上";
+  const biko=(j.breakdown?j.breakdown+" ／ ":"")+"合計重量"+w+"kg ／ 商品は準備中です(16時にご用意・早めの集荷はご遠慮ください)";
+  const row=(k,v)=>`<div style="display:flex;gap:8px"><span style="min-width:110px;color:#999;flex-shrink:0">${k}</span><span style="color:var(--ink)">${v}</span></div>`;
+  el.innerHTML=
+    `<div style="font-weight:700;font-size:12.5px;color:var(--ink);margin-bottom:5px">🚛 集荷依頼はこの内容で送信されます</div>`
+    +row("引き渡し日時","本日16時頃（<b>15時までの依頼</b>で当日集荷／15時以降は翌営業日16時）")
+    +row("個数・総重量",`<b>${j.kosu}個口</b>・<b>${w}kg</b>（フォーム区分: ${bucket}）`)
+    +row("品名・荷姿","木材")
+    +row("備考",esc(biko))
+    +row("集荷店・場所","西濃運輸 袋井支店 → 当社（磐田市福田5490-47）")
+    +`<div style="color:#999;font-size:11px;margin-top:4px">※総重量100kg超はフォーム仕様で「100Kg以上」となるため、実重量は備考欄で西濃へ伝えています（受付確認メールに備考は表示されませんが届いています）</div>`;
+}
 function renderToday(j){
   const el=$("#today-list");
   $("#today-date").textContent="（"+j.date.slice(0,4)+"/"+j.date.slice(4,6)+"/"+j.date.slice(6,8)+"）";
   updateTodayBadge(j.count);
   renderShime(j);
+  renderPickupInfo(j);
   if(!j.count){ el.innerHTML='<div class="hint" style="padding:10px">本日発送する出荷はまだありません（送り状を発行すると表示されます）</div>'; $("#today-tot").style.display="none"; return; }
   $("#today-tot").style.display="flex";
   $("#today-tot").innerHTML=`<span>件数 <b>${j.count}</b>件</span><span>合計 <b>${j.kosu}</b>個口</span><span>総重量 <b>${j.weightKg}</b>kg</span>`;
