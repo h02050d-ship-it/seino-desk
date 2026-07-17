@@ -443,7 +443,7 @@ function renderToday(j){
   const warn=j.has1m?'<div style="background:#fff4e5;border-left:4px solid #e8721b;border-radius:8px;padding:9px 12px;font-size:12px;color:#a06414;margin-bottom:8px">⚠️ 1m以下の材が含まれています。<b>その分の重量は未確定</b>なので、送り状・集荷の総重量を実際の重さで確認してください（1m以下の重量ルールは今後設定）。</div>':"";
   el.innerHTML=warn+j.list.map(x=>{
     const m=(x.src==="desk")?["手入力","other"]:(x.src==="km2")?["KM2","other"]:(MB[x.mall]||["その他","other"]);
-    return `<div class="tlist-item"><span class="mbadge ${m[1]}">${m[0]}</span><div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""}${x.w1m?' <span class="mbadge other" style="background:#e8721b">⚠️重量要確認</span>':""}${x.notified?' <span class="badge">楽天通知済</span>':""}<div class="meta">${esc(x.item||"")}</div></div><div style="text-align:right;white-space:nowrap"><div class="meta">${x.kosu}個口・${x.weightKg}kg${x.w1m?"?":""}</div><a class="no" href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${x.okurijoNo}" target="_blank" style="text-decoration:none">${x.okurijoNo}</a></div></div>`;
+    return `<div class="tlist-item"><span class="mbadge ${m[1]}">${m[0]}</span><div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""}${x.w1m?' <span class="mbadge other" style="background:#e8721b">⚠️重量要確認</span>':""}${x.notified?' <span class="badge">発送処理済</span>':""}<div class="meta">${esc(x.item||"")}</div></div><div style="text-align:right;white-space:nowrap"><div class="meta">${x.kosu}個口・${x.weightKg}kg${x.w1m?"?":""}</div><a class="no" href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${x.okurijoNo}" target="_blank" style="text-decoration:none">${x.okurijoNo}</a></div></div>`;
   }).join("");
 }
 // キャッシュ即表示＋裏で更新（stale-while-revalidate）。ログイン時に先読みするのでタブ切替は一瞬
@@ -526,14 +526,14 @@ function renderNotify(st){
   }).join("");
   let btns="";
   const apiCnt=(c.rakuten||0)+(c.yahoo||0);
-  if(c.rakuten&&c.yahoo) btns+=`<button onclick="notifyShipAll()" style="width:100%;padding:12px;margin-top:8px;border:none;background:linear-gradient(90deg,#bf0000,#7b1fa2);color:#fff;border-radius:10px;font-size:14.5px;font-weight:800;cursor:pointer">🚀 楽天・ヤフーまとめて発送通知（${apiCnt}件一括）</button>`;
-  if(c.rakuten) btns+=`<button onclick="notifyRakuten()" style="width:100%;padding:11px;margin-top:8px;border:none;background:#bf0000;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟥 楽天だけ発送通知（自動・${c.rakuten}件）</button>`;
-  if(c.yahoo) btns+=`<button onclick="notifyYahoo()" style="width:100%;padding:11px;margin-top:8px;border:none;background:#7b1fa2;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟣 ヤフーだけ発送通知（自動・${c.yahoo}件）</button>`;
+  if(c.rakuten&&c.yahoo) btns+=`<button onclick="notifyShipAll()" style="width:100%;padding:12px;margin-top:8px;border:none;background:linear-gradient(90deg,#bf0000,#7b1fa2);color:#fff;border-radius:10px;font-size:14.5px;font-weight:800;cursor:pointer">🚀 楽天・ヤフーまとめて発送処理（${apiCnt}件一括）</button>`;
+  if(c.rakuten) btns+=`<button onclick="notifyRakuten()" style="width:100%;padding:11px;margin-top:8px;border:none;background:#bf0000;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟥 楽天だけ発送処理（自動・${c.rakuten}件）</button>`;
+  if(c.yahoo) btns+=`<button onclick="notifyYahoo()" style="width:100%;padding:11px;margin-top:8px;border:none;background:#7b1fa2;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟣 ヤフーだけ発送処理（自動・${c.yahoo}件）</button>`;
   if(c.ichiba) btns+=`<button onclick="notifyMark('ichiba')" style="width:100%;padding:11px;margin-top:8px;border:1px solid #e8721b;background:#fff;color:#c85d0e;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🏪 市場は連絡した（${c.ichiba}件・消す）</button>`;
   const mallWord=[c.rakuten?"楽天":null,c.yahoo?"ヤフー":null,c.ichiba?"市場":null].filter(Boolean).join("・");
   $("#notify-body").innerHTML=
-    `<div style="font-size:16px;font-weight:800;margin-bottom:4px">📢 ${mallWord}の発送通知がまだです</div>`
-    +`<div style="font-size:12.5px;color:#a06414;background:#fff4e5;border-left:4px solid #e8721b;border-radius:8px;padding:8px 11px;margin:8px 0 12px">出荷手続きは完了しました。<b>発送通知</b>がまだのものが <b>${st.count}件</b> あります。下のボタンで今すぐ送信できます（15:30時点で残っていると大樹さんへLINE通知＋タスク登録します）。</div>`
+    `<div style="font-size:16px;font-weight:800;margin-bottom:4px">📢 ${mallWord}の発送処理がまだです</div>`
+    +`<div style="font-size:12.5px;color:#a06414;background:#fff4e5;border-left:4px solid #e8721b;border-radius:8px;padding:8px 11px;margin:8px 0 12px">出荷手続きは完了しました。<b>発送処理</b>がまだのものが <b>${st.count}件</b> あります。下のボタンで実行すると<b>管理ツールの受注が「発送済」になり、お客様へ発送完了メールが自動送信</b>されます（追跡番号＝西濃送り状番号）。15:30時点で残っていると大樹さんへLINE通知＋タスク登録します。</div>`
     +`<div style="margin-bottom:6px">${rows}</div>`
     +btns
     +`<button onclick="closeNotify()" style="width:100%;padding:11px;margin-top:10px;border:1px solid var(--line);background:#fff;color:#555;border-radius:10px;font-size:14px;cursor:pointer">後で（閉じる）</button>`;
@@ -542,23 +542,23 @@ function renderNotify(st){
 function closeNotify(){ $("#notify-modal").style.display="none"; }
 async function refreshNotify(){
   let st; try{ st=await gasGet2("seinonotifystatus"); }catch(e){ return; }
-  loadToday();   // 一覧の「通知済」バッジも更新
-  if(!st||!st.ok||!st.count){ closeNotify(); toast("✅ すべて発送通知済みです"); return; }
+  loadToday();   // 一覧の「発送処理済」バッジも更新
+  if(!st||!st.ok||!st.count){ closeNotify(); toast("✅ すべて発送処理済みです"); return; }
   renderNotify(st);
 }
 async function notifyRakuten(){
-  toast("楽天へ発送通知中…");
-  try{ const j=await gasGet2("seinorakutenship"); toast(j.ok?("✅ 楽天発送通知 "+(j.done?j.done.length:0)+"件"+((j.fail&&j.fail.length)?("／失敗"+j.fail.length+"件"):"完了")):"失敗"); }catch(e){ toast("通信エラー"); }
+  toast("楽天の発送処理中…");
+  try{ const j=await gasGet2("seinorakutenship"); toast(j.ok?("✅ 楽天 発送処理 "+(j.done?j.done.length:0)+"件"+((j.fail&&j.fail.length)?("／失敗"+j.fail.length+"件"):"完了（受注は発送済に）")):"失敗"); }catch(e){ toast("通信エラー"); }
   await refreshNotify();
 }
 async function notifyYahoo(){
-  toast("ヤフーへ発送通知中…");
-  try{ const j=await gasGet2("seinoyahooship"); toast(j.ok?("✅ ヤフー発送通知 "+(j.done?j.done.length:0)+"件"+((j.fail&&j.fail.length)?("／失敗"+j.fail.length+"件"):"完了")):"失敗"); }catch(e){ toast("通信エラー"); }
+  toast("ヤフーの発送処理中…");
+  try{ const j=await gasGet2("seinoyahooship"); toast(j.ok?("✅ ヤフー 発送処理 "+(j.done?j.done.length:0)+"件"+((j.fail&&j.fail.length)?("／失敗"+j.fail.length+"件"):"完了（受注は発送済に）")):"失敗"); }catch(e){ toast("通信エラー"); }
   await refreshNotify();
 }
 async function notifyShipAll(){
-  toast("楽天・ヤフーへ一括発送通知中…");
-  try{ const j=await gasGet2("seinoshipall"); toast(j.ok?("✅ 一括発送通知 "+(j.done?j.done.length:0)+"件"+((j.fail&&j.fail.length)?("／失敗"+j.fail.length+"件"):"完了")):"失敗"); }catch(e){ toast("通信エラー"); }
+  toast("楽天・ヤフーへ一括発送処理中…");
+  try{ const j=await gasGet2("seinoshipall"); toast(j.ok?("✅ 一括発送処理 "+(j.done?j.done.length:0)+"件"+((j.fail&&j.fail.length)?("／失敗"+j.fail.length+"件"):"完了（受注は発送済に）")):"失敗"); }catch(e){ toast("通信エラー"); }
   await refreshNotify();
 }
 async function notifyMark(mall){
