@@ -525,12 +525,15 @@ function renderNotify(st){
     return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0efe9"><span style="background:${m[1]};color:#fff;font-size:11px;padding:2px 7px;border-radius:6px">${m[0]}</span><b style="flex:1;min-width:0">${esc(x.customer)} 様</b><span style="font-size:12px;color:#888">${x.okurijoNo}</span></div>`;
   }).join("");
   let btns="";
-  if(c.rakuten) btns+=`<button onclick="notifyRakuten()" style="width:100%;padding:11px;margin-top:8px;border:none;background:#bf0000;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟥 楽天を今すぐ発送通知（自動・${c.rakuten}件）</button>`;
-  if(c.yahoo) btns+=`<button onclick="notifyMark('yahoo')" style="width:100%;padding:11px;margin-top:8px;border:1px solid #7b1fa2;background:#fff;color:#7b1fa2;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟣 ヤフーは手動で通知した（${c.yahoo}件・消す）</button>`;
+  const apiCnt=(c.rakuten||0)+(c.yahoo||0);
+  if(c.rakuten&&c.yahoo) btns+=`<button onclick="notifyShipAll()" style="width:100%;padding:12px;margin-top:8px;border:none;background:linear-gradient(90deg,#bf0000,#7b1fa2);color:#fff;border-radius:10px;font-size:14.5px;font-weight:800;cursor:pointer">🚀 楽天・ヤフーまとめて発送通知（${apiCnt}件一括）</button>`;
+  if(c.rakuten) btns+=`<button onclick="notifyRakuten()" style="width:100%;padding:11px;margin-top:8px;border:none;background:#bf0000;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟥 楽天だけ発送通知（自動・${c.rakuten}件）</button>`;
+  if(c.yahoo) btns+=`<button onclick="notifyYahoo()" style="width:100%;padding:11px;margin-top:8px;border:none;background:#7b1fa2;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟣 ヤフーだけ発送通知（自動・${c.yahoo}件）</button>`;
   if(c.ichiba) btns+=`<button onclick="notifyMark('ichiba')" style="width:100%;padding:11px;margin-top:8px;border:1px solid #e8721b;background:#fff;color:#c85d0e;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🏪 市場は連絡した（${c.ichiba}件・消す）</button>`;
+  const mallWord=[c.rakuten?"楽天":null,c.yahoo?"ヤフー":null,c.ichiba?"市場":null].filter(Boolean).join("・");
   $("#notify-body").innerHTML=
-    `<div style="font-size:16px;font-weight:800;margin-bottom:4px">📢 楽天の発送通知がまだです</div>`
-    +`<div style="font-size:12.5px;color:#a06414;background:#fff4e5;border-left:4px solid #e8721b;border-radius:8px;padding:8px 11px;margin:8px 0 12px">出荷手続きは完了しました。<b>楽天の発送通知</b>がまだのものが <b>${st.count}件</b> あります。下のボタンで今すぐ送信できます（15:30時点で残っていると大樹さんへLINE通知＋タスク登録します）。</div>`
+    `<div style="font-size:16px;font-weight:800;margin-bottom:4px">📢 ${mallWord}の発送通知がまだです</div>`
+    +`<div style="font-size:12.5px;color:#a06414;background:#fff4e5;border-left:4px solid #e8721b;border-radius:8px;padding:8px 11px;margin:8px 0 12px">出荷手続きは完了しました。<b>発送通知</b>がまだのものが <b>${st.count}件</b> あります。下のボタンで今すぐ送信できます（15:30時点で残っていると大樹さんへLINE通知＋タスク登録します）。</div>`
     +`<div style="margin-bottom:6px">${rows}</div>`
     +btns
     +`<button onclick="closeNotify()" style="width:100%;padding:11px;margin-top:10px;border:1px solid var(--line);background:#fff;color:#555;border-radius:10px;font-size:14px;cursor:pointer">後で（閉じる）</button>`;
@@ -546,6 +549,16 @@ async function refreshNotify(){
 async function notifyRakuten(){
   toast("楽天へ発送通知中…");
   try{ const j=await gasGet2("seinorakutenship"); toast(j.ok?("✅ 楽天発送通知 "+(j.done?j.done.length:0)+"件"+((j.fail&&j.fail.length)?("／失敗"+j.fail.length+"件"):"完了")):"失敗"); }catch(e){ toast("通信エラー"); }
+  await refreshNotify();
+}
+async function notifyYahoo(){
+  toast("ヤフーへ発送通知中…");
+  try{ const j=await gasGet2("seinoyahooship"); toast(j.ok?("✅ ヤフー発送通知 "+(j.done?j.done.length:0)+"件"+((j.fail&&j.fail.length)?("／失敗"+j.fail.length+"件"):"完了")):"失敗"); }catch(e){ toast("通信エラー"); }
+  await refreshNotify();
+}
+async function notifyShipAll(){
+  toast("楽天・ヤフーへ一括発送通知中…");
+  try{ const j=await gasGet2("seinoshipall"); toast(j.ok?("✅ 一括発送通知 "+(j.done?j.done.length:0)+"件"+((j.fail&&j.fail.length)?("／失敗"+j.fail.length+"件"):"完了")):"失敗"); }catch(e){ toast("通信エラー"); }
   await refreshNotify();
 }
 async function notifyMark(mall){
