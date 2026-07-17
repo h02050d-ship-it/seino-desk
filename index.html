@@ -63,6 +63,31 @@ button.primary:disabled{opacity:.5;cursor:default}
 .tot-row b{color:var(--accent);font-size:18px}
 .shime-ind{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .shime-ind button{flex:1;min-width:140px;padding:11px;border:1px solid var(--line);background:#fff;border-radius:9px;font-size:13px;cursor:pointer}
+/* ===== KM2（カンガルーマジック）風フォーム ===== */
+.km2{font-size:13px;color:#222}
+.km2-topbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;background:#dcecf7;border:1px solid #9cc3dd;border-radius:2px;padding:9px 12px;margin-bottom:12px}
+.km2-topbar .km2-tag{background:#1a3a6e;color:#fff;font-weight:700;padding:4px 11px;border-radius:2px;font-size:12px}
+.km2-topbar label{display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:12.5px}
+.km2-topbar>span{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:#123}
+.km2-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+@media(max-width:700px){.km2-cols{grid-template-columns:1fr}}
+.km2-sec{border:1px solid #9cc3dd;border-radius:2px;margin-bottom:12px;overflow:hidden}
+.km2-sec>h4{background:#1a3a6e;color:#fff;font-size:13px;font-weight:700;padding:7px 10px;margin:0}
+.km2-row{display:flex;border-top:1px solid #cfe0ee}
+.km2-row:nth-child(even){background:#eef7fc}
+.km2-row:nth-child(odd){background:#fff}
+.km2-lbl{flex:0 0 100px;background:#cfe7f5;padding:7px 8px;font-size:11.5px;font-weight:700;color:#123;display:flex;align-items:center;border-right:1px solid #b5d4e8;word-break:break-all;line-height:1.3}
+.km2-val{flex:1;min-width:0;padding:6px 8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px}
+.km2-val label{display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+.km2 input[type=text],.km2 input[type=number],.km2 input[type=date],.km2 select{padding:6px 8px;border:1px solid #b9c4cf;border-radius:2px;font-size:13px;background:#fff;min-width:0}
+.km2 input:focus,.km2 select:focus{outline:2px solid #1a3a6e;border-color:transparent}
+.km2-btn{background:#3a6ea5;color:#fff;border:none;border-radius:2px;padding:6px 10px;font-size:12px;cursor:pointer;white-space:nowrap}
+.km2-btn:hover{background:#2c5680}
+.km2-req:placeholder-shown{background:#f9d9d9}
+.km2-fixed{color:#123;font-size:13px;font-weight:600}
+.km2-go{width:100%;background:#dd0000;color:#fff;border:none;border-radius:3px;padding:16px;font-size:20px;font-weight:800;letter-spacing:.35em;cursor:pointer;margin-top:2px;box-shadow:0 2px 4px rgba(0,0,0,.15)}
+.km2-go:hover{background:#b80000}
+.km2-go:disabled{opacity:.5;cursor:default}
 </style>
 </head>
 <body>
@@ -104,133 +129,193 @@ button.primary:disabled{opacity:.5;cursor:default}
       <span class="hint">order-deskの登録情報で発行され、送り状番号がorder-deskにも書き戻ります（自動印刷あり）</span>
       <a href="#" onclick="unlink();return false" style="margin-left:8px;color:var(--warn)">解除</a>
     </div>
-    <div class="sec">お届け先</div>
-    <label class="f">お名前・会社名 <b>*</b></label>
-    <input type="text" id="f-name" maxlength="30" placeholder="例: 山田 太郎">
-    <div class="check-line" style="margin-top:8px">
-      <label><input type="checkbox" id="f-tome" onchange="tomeToggle()"> 🏢 支店止め（個人のお客様など）</label>
-    </div>
-    <div class="tome-box" id="tome-box" style="display:none">
-      <label class="f" style="margin-top:0">止め支店名 <b>*</b></label>
-      <input type="text" id="f-branch" list="branches" placeholder="例: 岩槻（入力で候補表示）">
-      <datalist id="branches"></datalist>
-      <div class="hint">住所・〒は支店のものが自動で入ります。電話はお客様本人の番号を入れてください（着荷連絡用）。</div>
-    </div>
-    <div id="addr-rows">
-      <div class="row" style="margin-top:8px">
-        <div style="flex:0 0 130px"><label class="f">〒（ハイフン不要）<b>*</b></label><input type="text" id="f-zip" maxlength="8" placeholder="4380086" oninput="zipAuto()"></div>
-        <div><label class="f">住所 <b>*</b></label><input type="text" id="f-addr" maxlength="30" placeholder="〒を入れると自動で入ります"></div>
+    <div class="km2">
+      <!-- 条件バー（KM2の最上部・水色帯） -->
+      <div class="km2-topbar">
+        <span class="km2-tag">商品情報</span>
+        <label>出荷予定日 <input type="date" id="f-date"></label>
+        <span>宛先
+          <label><input type="radio" name="atesaki" value="kigyo" checked onchange="ateToggle()"> 企業宛</label>
+          <label><input type="radio" name="atesaki" value="kojin" onchange="ateToggle()"> 個人宛</label>
+        </span>
+        <span>商品
+          <select id="f-shohin">
+            <option value="0">一般</option>
+            <option value="1">宅配</option>
+            <option value="3">ミニ便（1個口・20kgまで）</option>
+            <option value="8">通販便</option>
+            <option value="9">ビジネス便</option>
+          </select>
+        </span>
+        <span>運賃
+          <label><input type="radio" name="motochaku" value="1" checked> 元払</label>
+          <label><input type="radio" name="motochaku" value="3"> 着払</label>
+        </span>
       </div>
-    </div>
-    <label class="f">電話番号 <b>*</b></label>
-    <input type="text" id="f-tel" maxlength="13" placeholder="09012345678">
 
-    <div class="sec" style="margin-top:18px">荷物</div>
-    <div class="row">
-      <div><label class="f">個口数 <b>*</b></label><input type="number" id="f-kosu" min="1" value="1" onchange="autoWeight()"></div>
-      <div><label class="f">総重量 kg</label><input type="number" id="f-kg" min="1" placeholder="自動: 個口×20"></div>
-    </div>
-    <div class="hint">目安: 2m材=20kg／3m=30kg／4m=40kg（1個口あたり）× 個口数</div>
-    <label class="f">商品区分</label>
-    <select id="f-shohin">
-      <option value="0">一般</option>
-      <option value="1">宅配</option>
-      <option value="3">ミニ便（1個口・20kgまで）</option>
-      <option value="8">通販便</option>
-      <option value="9">ビジネス便</option>
-    </select>
-    <div class="radio-line">
-      <label><input type="radio" name="motochaku" value="1" checked> 元払</label>
-      <label><input type="radio" name="motochaku" value="3"> 着払</label>
-    </div>
-    <div class="row">
-      <div><label class="f">記事1（長さ×数量・15字まで）</label><input type="text" id="f-kiji1" maxlength="15" placeholder="2m×5"></div>
-      <div><label class="f">記事2</label><input type="text" id="f-kiji2" maxlength="15" placeholder="3m×2"></div>
-    </div>
-    <div class="row">
-      <div><label class="f">出荷予定日</label><input type="date" id="f-date"></div>
-      <div style="display:flex;align-items:flex-end;padding-bottom:2px">
-        <label style="display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="f-print" checked> 🖨 会社PCで自動印刷</label>
-      </div>
-    </div>
-    <div class="sec" style="margin-top:18px">荷送人</div>
-    <div class="radio-line">
-      <label><input type="radio" name="sender" value="self" checked onchange="senderToggle()"> 林材木店（通常）</label>
-      <label><input type="radio" name="sender" value="other" onchange="senderToggle()"> 別の荷送人で出す（市場からの依頼など）</label>
-    </div>
-    <div class="tome-box" id="sender-box" style="display:none">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-        <b style="font-size:13px">荷送人情報</b><span style="flex:1"></span>
-        <button type="button" onclick="openPartnerModalFor('sender')" style="background:#e8721b;color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">📇 取引先から選択</button>
-      </div>
-      <label class="f" style="margin-top:0">荷送人名（20字）</label>
-      <input type="text" id="s-name" maxlength="20" placeholder="例: 磐田市場／〇〇木材">
-      <label class="f">住所1 都道府県+市区町村（20字）</label>
-      <input type="text" id="s-addr1" maxlength="20" placeholder="静岡県磐田市">
-      <label class="f">住所2 番地など（20字）</label>
-      <input type="text" id="s-addr2" maxlength="20" placeholder="〇〇町1-2-3">
-      <label class="f">電話（13字）</label>
-      <input type="text" id="s-tel" maxlength="13" placeholder="0538000000">
-      <div class="hint">運賃の請求は林材木店のまま。送り状の荷送人欄だけ変わります（発行前確認とPDFで確認できます）</div>
-    </div>
+      <div class="km2-cols">
+        <!-- ===== 左カラム ===== -->
+        <div>
+          <!-- お届け先情報 -->
+          <div class="km2-sec">
+            <h4>お届け先情報</h4>
+            <div class="km2-row">
+              <div class="km2-lbl">コード</div>
+              <div class="km2-val"><input type="text" disabled placeholder="—" style="flex:0 0 120px;background:#eee;color:#999">
+                <button type="button" class="km2-btn" onclick="openPartnerModalFor('dest')">📇 お届け先検索</button></div>
+            </div>
+            <div class="km2-row">
+              <div class="km2-lbl">TEL</div>
+              <div class="km2-val"><input type="text" id="f-tel" maxlength="13" placeholder="09012345678" style="flex:1"></div>
+            </div>
+            <div id="addr-rows">
+              <div class="km2-row">
+                <div class="km2-lbl">住所</div>
+                <div class="km2-val">〒<input type="text" id="f-zip" class="km2-req" maxlength="8" placeholder="4380086" oninput="zipAuto()" style="flex:0 0 100px">
+                  <button type="button" class="km2-btn" onclick="zipAuto()">〒から住所取得</button></div>
+              </div>
+              <div class="km2-row">
+                <div class="km2-lbl"></div>
+                <div class="km2-val"><input type="text" id="f-addr" class="km2-req" maxlength="30" placeholder="住所1（都道府県市区町村）" style="flex:1"></div>
+              </div>
+              <div class="km2-row">
+                <div class="km2-lbl"></div>
+                <div class="km2-val"><input type="text" id="f-addr2" maxlength="30" placeholder="住所2（番地・建物など）" style="flex:1"></div>
+              </div>
+            </div>
+            <div class="km2-row">
+              <div class="km2-lbl">名称</div>
+              <div class="km2-val"><input type="text" id="f-name" class="km2-req" maxlength="30" placeholder="名称1（お名前・会社名）" style="flex:1"></div>
+            </div>
+            <div class="km2-row">
+              <div class="km2-lbl"></div>
+              <div class="km2-val"><input type="text" id="f-name2" maxlength="30" placeholder="名称2（部門・様方など）" style="flex:1"></div>
+            </div>
+          </div>
 
-    <details style="margin-top:16px">
-      <summary style="cursor:pointer;font-size:13px;color:var(--accent);padding:6px 0">⚙️ 詳細オプション（記事3〜5・輸送指示・保険など）</summary>
-      <div style="padding-top:8px">
-        <div class="row">
-          <div><label class="f">記事3（15字）</label><input type="text" id="f-kiji3" maxlength="15"></div>
-          <div><label class="f">記事4（15字）</label><input type="text" id="f-kiji4" maxlength="15"></div>
-        </div>
-        <label class="f">記事5（15字）</label><input type="text" id="f-kiji5" maxlength="15">
-        <label class="f">届け先名称2（30字）</label><input type="text" id="f-name2" maxlength="30">
-        <label class="f">届け先住所2（30字）</label><input type="text" id="f-addr2" maxlength="30">
-        <label class="f">部署名（15字）</label><input type="text" id="f-busho" maxlength="15">
-        <label class="f">輸送指示</label>
-        <select id="f-yuso" onchange="yusoToggle()">
-          <option value="">なし</option>
-          <option value="02">配達指定</option>
-          <option value="03">取扱注意</option>
-          <option value="04">われもの注意</option>
-          <option value="05">ガラス注意</option>
-          <option value="06">コワレモノ</option>
-          <option value="07">水濡れ注意</option>
-          <option value="08">精密機械</option>
-          <option value="09">下積厳禁</option>
-          <option value="10">横積厳禁</option>
-          <option value="11">平積厳禁</option>
-          <option value="12">立積厳禁</option>
-          <option value="13">天地無用</option>
-          <option value="14">角つき厳禁</option>
-          <option value="15">貴重品</option>
-          <option value="16">高価品</option>
-          <option value="17">予約</option>
-        </select>
-        <div class="hint">支店止めは上の🏢チェックを使ってください</div>
-        <div id="haitatsu-box" style="display:none">
-          <div class="row" style="margin-top:6px">
-            <div><label class="f">配達指定日</label><input type="date" id="f-haitatsu-date"></div>
-            <div><label class="f">時間帯</label>
-              <select id="f-haitatsu-kbn">
-                <option value="0">希望無</option>
-                <option value="1">午前</option>
-                <option value="2">午後</option>
-                <option value="8">まで</option>
-              </select>
+          <!-- 輸送情報 -->
+          <div class="km2-sec">
+            <h4>輸送情報</h4>
+            <div class="km2-row">
+              <div class="km2-lbl">個数・重量</div>
+              <div class="km2-val"><input type="number" id="f-kosu" min="1" value="1" onchange="autoWeight()" style="flex:0 0 64px">個口
+                <input type="number" id="f-kg" min="1" placeholder="自動20/口" style="flex:0 0 96px">kg</div>
+            </div>
+            <div class="km2-row">
+              <div class="km2-lbl">記事1・2</div>
+              <div class="km2-val"><input type="text" id="f-kiji1" maxlength="15" placeholder="2m×5" style="flex:1 1 100px"><input type="text" id="f-kiji2" maxlength="15" placeholder="3m×2" style="flex:1 1 100px"></div>
+            </div>
+            <div class="km2-row">
+              <div class="km2-lbl">記事3・4</div>
+              <div class="km2-val"><input type="text" id="f-kiji3" maxlength="15" style="flex:1 1 100px"><input type="text" id="f-kiji4" maxlength="15" style="flex:1 1 100px"></div>
+            </div>
+            <div class="km2-row">
+              <div class="km2-lbl">記事5</div>
+              <div class="km2-val"><input type="text" id="f-kiji5" maxlength="15" style="flex:1"></div>
+            </div>
+            <div class="km2-row">
+              <div class="km2-lbl">輸送指示</div>
+              <div class="km2-val">
+                <select id="km2-tome-sel" onchange="document.getElementById('f-tome').checked=(this.value==='tome');tomeToggle();" style="flex:0 0 120px">
+                  <option value="none">指定しない</option>
+                  <option value="tome">支店止め</option>
+                </select>
+                止店所名<input type="text" id="f-branch" list="branches" placeholder="例: 岩槻" disabled style="flex:1 1 120px">
+                <datalist id="branches"></datalist>
+              </div>
+            </div>
+            <div class="km2-row" id="tome-box" style="display:none">
+              <div class="km2-lbl"></div>
+              <div class="km2-val" style="font-size:11px;color:#666;line-height:1.5">住所・〒は支店のものが自動で入ります。TELはお客様本人の番号（着荷連絡用）を入れてください。</div>
             </div>
           </div>
         </div>
-        <label class="f">保険金額（万円）</label><input type="number" id="f-hoken" min="0">
-        <label class="f">荷札印刷枚数</label><input type="number" id="f-nifuda" min="0" placeholder="自動: 個数-1">
-        <label class="f">重量（才）</label><input type="number" id="f-sai" min="0">
-        <div class="row" style="margin-top:4px">
-          <div><label class="f">代引 品代金税込</label><input type="number" id="f-daibiki-shina" min="0"></div>
-          <div><label class="f">代引 消費税</label><input type="number" id="f-daibiki-tax" min="0"></div>
-        </div>
-        <div class="hint">※代引はご契約が必要です</div>
-      </div>
-    </details>
 
-    <button class="primary" id="btn-go" onclick="createOkurijo()">🚚 送り状を発行する</button>
+        <!-- ===== 右カラム ===== -->
+        <div>
+          <!-- 荷送人情報 -->
+          <div class="km2-sec">
+            <h4>荷送人情報</h4>
+            <div class="km2-row">
+              <div class="km2-lbl">区分</div>
+              <div class="km2-val">
+                <label><input type="radio" name="sender" value="self" checked onchange="senderToggle()"> この荷送人（林材木店）</label>
+                <label><input type="radio" name="sender" value="other" onchange="senderToggle()"> 別の荷送人で出す</label>
+                <button type="button" class="km2-btn" onclick="openPartnerModalFor('sender')">📇 荷送人検索</button>
+              </div>
+            </div>
+            <div id="sender-fixed">
+              <div class="km2-row">
+                <div class="km2-lbl">コード</div>
+                <div class="km2-val km2-fixed">0538582395　株式会社 林材木店</div>
+              </div>
+              <div class="km2-row">
+                <div class="km2-lbl">TEL</div>
+                <div class="km2-val km2-fixed">0538582395</div>
+              </div>
+              <div class="km2-row">
+                <div class="km2-lbl">住所</div>
+                <div class="km2-val km2-fixed">静岡県磐田市福田５４９０－４７</div>
+              </div>
+              <div class="km2-row">
+                <div class="km2-lbl">名称</div>
+                <div class="km2-val km2-fixed">株式会社林材木店</div>
+              </div>
+            </div>
+            <div id="sender-box" style="display:none">
+              <div class="km2-row">
+                <div class="km2-lbl">名称</div>
+                <div class="km2-val"><input type="text" id="s-name" maxlength="20" placeholder="例: 磐田市場／〇〇木材" style="flex:1"></div>
+              </div>
+              <div class="km2-row">
+                <div class="km2-lbl">住所1</div>
+                <div class="km2-val"><input type="text" id="s-addr1" maxlength="20" placeholder="静岡県磐田市" style="flex:1"></div>
+              </div>
+              <div class="km2-row">
+                <div class="km2-lbl">住所2</div>
+                <div class="km2-val"><input type="text" id="s-addr2" maxlength="20" placeholder="〇〇町1-2-3" style="flex:1"></div>
+              </div>
+              <div class="km2-row">
+                <div class="km2-lbl">電話</div>
+                <div class="km2-val"><input type="text" id="s-tel" maxlength="13" placeholder="0538000000" style="flex:1"></div>
+              </div>
+            </div>
+            <div class="km2-row">
+              <div class="km2-lbl">部署</div>
+              <div class="km2-val"><input type="text" id="f-busho" maxlength="15" placeholder="（任意）" style="flex:1"></div>
+            </div>
+          </div>
+
+          <!-- 各種情報 -->
+          <div class="km2-sec">
+            <h4>各種情報</h4>
+            <div class="km2-row">
+              <div class="km2-lbl">送り状兼荷札印刷</div>
+              <div class="km2-val km2-fixed">◉ すぐに印刷（会社PCで自動A5印刷）</div>
+            </div>
+            <div class="km2-row">
+              <div class="km2-lbl">管理番号</div>
+              <div class="km2-val km2-fixed">自動採番</div>
+            </div>
+          </div>
+
+          <button class="km2-go" id="btn-go" onclick="createOkurijo()">出 荷 登 録</button>
+        </div>
+      </div>
+
+      <!-- KM2非対応だが既存JS(createOkurijo/resetForm/yusoToggle)が参照する項目。機能維持のため保持（画面には出さない） -->
+      <div style="display:none" aria-hidden="true">
+        <input type="checkbox" id="f-tome" onchange="tomeToggle()">
+        <input type="checkbox" id="f-print" checked>
+        <select id="f-yuso" onchange="yusoToggle()"><option value=""></option></select>
+        <div id="haitatsu-box"><input type="date" id="f-haitatsu-date"><select id="f-haitatsu-kbn"><option value="0"></option></select></div>
+        <input type="number" id="f-hoken">
+        <input type="number" id="f-nifuda">
+        <input type="number" id="f-sai">
+        <input type="number" id="f-daibiki-shina">
+        <input type="number" id="f-daibiki-tax">
+      </div>
+    </div>
 
     <div class="result" id="result">
       <div style="font-size:12px;color:var(--muted)">送り状番号</div>
@@ -602,12 +687,19 @@ function logout(){ localStorage.removeItem("seinodesk_cred"); ssoClear(); locati
 // ---- form ----
 function tomeToggle(){
   const on=$("#f-tome").checked;
-  $("#tome-box").style.display=on?"block":"none";
-  $("#addr-rows").style.display=on?"none":"block";
+  const br=$("#f-branch"); if(br){ br.disabled=!on; if(!on) br.value=""; }
+  const tb=$("#tome-box"); if(tb) tb.style.display=on?"flex":"none";
+  const ar=$("#addr-rows"); if(ar) ar.style.display=on?"none":"block"; // 支店止め時は住所欄を隠す（従来挙動）
+  const sel=$("#km2-tome-sel"); if(sel) sel.value=on?"tome":"none";     // 輸送指示ドロップダウンと同期
+}
+function ateToggle(){ // 宛先: 個人宛→支店止め / 企業宛→指定しない
+  const kojin=document.querySelector('input[name="atesaki"]:checked').value==="kojin";
+  $("#f-tome").checked=kojin; tomeToggle();
 }
 function senderToggle(){
   const other=document.querySelector('input[name="sender"]:checked').value==="other";
-  $("#sender-box").style.display=other?"block":"none";
+  const box=$("#sender-box"); if(box) box.style.display=other?"block":"none";
+  const fx=$("#sender-fixed"); if(fx) fx.style.display=other?"none":"block";
 }
 function yusoToggle(){
   $("#haitatsu-box").style.display=($("#f-yuso").value==="02")?"block":"none";
