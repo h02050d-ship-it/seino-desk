@@ -352,12 +352,27 @@ function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");se
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
 // ---- login ----
+// 共通SSO: h02050d-ship-it.github.io の他ツールのログインを引き継ぐ
+const SSO_KEY="hayazai_sso_cred";
+const SSO_PEERS=["hayazai_board_cred","hayazai_seiso_cred","hayazai_rulebook_cred","hayazai_kaizen_cred","notify_creds_v1","seinodesk_cred","faxdesk_cred","orderdesk_cred","nippou_cred"];
+function ssoFind_(){
+  const keys=[SSO_KEY].concat(SSO_PEERS);
+  for(const k of keys){
+    try{ const v=JSON.parse(localStorage.getItem(k)||"null");
+      if(v){ const email=v.email||v.e, pass=v.pass||v.p; if(email&&pass) return {email:String(email),pass:String(pass)}; }
+    }catch(e){}
+  }
+  return null;
+}
+function ssoWrite(email,pass){ try{ localStorage.setItem(SSO_KEY,JSON.stringify({email:email,pass:pass})); }catch(e){} }
+function ssoClear(){ try{ localStorage.removeItem(SSO_KEY); }catch(e){} }
 function init(){
   const dl=$("#branches"); OFFICES.forEach(n=>{const o=document.createElement("option");o.value=n;dl.appendChild(o);});
   var _d=new Date(); $("#f-date").value=new Date(_d.getTime()-_d.getTimezoneOffset()*60000).toISOString().slice(0,10); // ローカル日付（UTCだと朝9時前に前日になる）
   ["l-email","l-pass"].forEach(id=>{$("#"+id).addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});});
-  const c=localStorage.getItem("seinodesk_cred");
-  if(c){ CRED=JSON.parse(c); showMain(); }
+  let c=null; try{ c=JSON.parse(localStorage.getItem("seinodesk_cred")||"null"); }catch(e){}
+  if(!(c&&c.email&&c.pass)){ c=ssoFind_(); if(c) try{ localStorage.setItem("seinodesk_cred",JSON.stringify(c)); }catch(e){} }
+  if(c&&c.email&&c.pass){ CRED=c; showMain(); }
   renderHist();
 }
 async function doLogin(){
@@ -367,7 +382,7 @@ async function doLogin(){
   try{
     const r=await fetch(API_URL+"?action=pickupjob&email="+encodeURIComponent(email)+"&pass="+encodeURIComponent(pass));
     const j=await r.json();
-    if(j.ok){ CRED={email,pass}; localStorage.setItem("seinodesk_cred",JSON.stringify(CRED)); showMain(); toast("ログインしました"); }
+    if(j.ok){ CRED={email,pass}; localStorage.setItem("seinodesk_cred",JSON.stringify(CRED)); ssoWrite(email,pass); showMain(); toast("ログインしました"); }
     else toast("メールまたはパスワードが違います");
   }catch(e){ toast("通信エラー"); }
 }
@@ -582,7 +597,7 @@ async function km2Sync(){
     toast("照合処理済み（件数変化なし＝漏れはありませんでした）");
   }catch(e){ toast("通信エラー"); }
 }
-function logout(){ localStorage.removeItem("seinodesk_cred"); location.reload(); }
+function logout(){ localStorage.removeItem("seinodesk_cred"); ssoClear(); location.reload(); }
 
 // ---- form ----
 function tomeToggle(){
