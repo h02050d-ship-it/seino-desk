@@ -789,7 +789,8 @@ function renderPartnerList(){
     if(p.seinoHidden && !showHidden) return false; // 非表示の取引先は通常隠す
     if(!q) return true;
     return ((p.name||"")+" "+(p.addr||"")+" "+(p.kana||"")).toLowerCase().includes(q);
-  }).slice(0,300);
+  }).sort((a,b)=>String(a.kana||a.name||"").localeCompare(String(b.kana||b.name||""),"ja"))  // あいうえお順（かな優先・無ければ名前）
+    .slice(0,300);
   const el=$("#pt-list");
   if(!list.length){ el.innerHTML='<div class="hint" style="padding:12px">該当する取引先がありません</div>'; return; }
   el.innerHTML=list.map(p=>{
