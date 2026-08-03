@@ -551,6 +551,10 @@ function renderShipPending(j){
     `<div style="font-size:13.5px;font-weight:800;color:#a06414;margin-bottom:5px">⚠️ 発送処理がまだです（${p.count}件）</div>`
     +`<div style="font-size:12px;color:#7a5a2a;line-height:1.7;margin-bottom:6px">${names}${p.count>6?`<br>…他${p.count-6}件`:""}</div>`
     +btns
+    +`<div style="margin-top:8px;background:#eef4ec;border:1px solid #cfe0cc;border-radius:8px;padding:7px 10px;font-size:11.5px;color:#2c6b45;line-height:1.7">
+        🤖 <b>放っておいても自動で処理されます</b>：西濃の追跡に送り状番号が出たら（＝集荷されて西濃が荷物を受け取ったら）、10分ごとのチェックで自動的に発送処理します。<b>集荷されていないのに発送通知が飛ぶことはありません</b>。<br>
+        急ぐ場合だけ上のボタンで先に処理してください。21時までに処理できない荷物があればLINEでお知らせします。
+      </div>`
     +`<div style="display:flex;gap:8px;margin-top:8px;align-items:center">
         <a href="javascript:void(0)" onclick="shipRecheck()" style="color:var(--accent);font-size:11.5px">↻ モール側で処理済みか確認する</a>
         <span style="color:#bbb;font-size:11px">管理画面で手動処理した場合はここで消えます</span>
