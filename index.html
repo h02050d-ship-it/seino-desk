@@ -193,11 +193,6 @@ button.primary:disabled{opacity:.5;cursor:default}
               <div class="km2-lbl"></div>
               <div class="km2-val"><input type="text" id="f-name2" maxlength="30" placeholder="名称2（部門・様方など）" style="flex:1"></div>
             </div>
-            <div class="km2-row">
-              <div class="km2-lbl">通知</div>
-              <div class="km2-val" style="flex-wrap:wrap"><input type="email" id="f-email" maxlength="100" placeholder="メールアドレス（任意） 例：abc@co.jp" style="flex:1;min-width:200px">
-                <span style="flex-basis:100%;font-size:10px;color:#888;line-height:1.5">入力すると当社（info@hayazai.com）から<b>発送案内メール（送り状番号・追跡リンク付き）</b>をお送りします ※西濃の配達時間メールはAPI非対応のため当社送信で代替</span></div>
-            </div>
           </div>
 
           <!-- 輸送情報 -->
@@ -744,7 +739,6 @@ function pickCand(s){
   $("#f-kg").value=String(snapKg(c.weightKg||((parseInt(c.kosu,10)||1)*20)));
   $("#f-kiji1").value=c.kiji1||"";
   $("#f-kiji2").value=c.kiji2||"";
-  $("#f-email").value=c.email||"";   // 注文のメールを通知欄へ自動入力（不要なら消せる）
   const tome=(c.custType==="個人"&&c.branch);
   $("#f-tome").checked=!!tome; if(tome)$("#f-branch").value=c.branch; tomeToggle();
   $("#cand-list").style.display="none";
@@ -970,7 +964,7 @@ function zipAuto(){ // 〒7桁そろったら住所を自動入力（日本郵�
 }
 function resetForm(){
   LINKED=null; $("#linked-banner").style.display="none";
-  ["f-name","f-zip","f-addr","f-tel","f-email","f-kiji1","f-kiji2","f-branch",
+  ["f-name","f-zip","f-addr","f-tel","f-kiji1","f-kiji2","f-branch",
    "s-name","s-addr1","s-addr2","s-tel","f-kiji3","f-kiji4","f-kiji5","f-name2","f-addr2","f-busho",
    "f-hoken","f-nifuda","f-sai","f-daibiki-shina","f-daibiki-tax","f-haitatsu-date"].forEach(id=>{const e=document.getElementById(id);if(e)e.value="";});
   $("#f-kosu").value="1"; $("#f-kg").value="20"; $("#f-tome").checked=false; tomeToggle();
@@ -1041,11 +1035,8 @@ async function createOkurijo(){
   if(yuso==="02") msg+="\n配達指定: "+haitatsuDate.slice(0,2)+"/"+haitatsuDate.slice(2)+"（"+(HKBN_LABEL[$("#f-haitatsu-kbn").value]||"")+"）";
   if(hoken>0) msg+="\n保険: "+hoken+"万円";
   if(dShina>0 && !isNaN(dTax)) msg+="\n代引: 品代"+dShina+"円 / 税"+dTax+"円";
-  const notifyEmail=$("#f-email").value.trim();
-  if(notifyEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notifyEmail)){ toast("メールアドレスの形式が正しくありません"); return; }
   msg+="\n出荷予定日: "+$("#f-date").value
     +"\n印刷: "+(doPrint?"会社PCで自動印刷":"しない（登録のみ）")
-    +(notifyEmail?("\n通知: "+notifyEmail+" へ発送案内メールを送信（当社名義）"):"")
     +"\n\nよろしいですか？";
   if(!confirm(msg)) return;
   $("#btn-go").disabled=true; toast("西濃へ登録中…");
@@ -1061,7 +1052,6 @@ async function createOkurijo(){
   add("todokesakiName2",$("#f-name2").value.trim());
   add("todokesakiAddress2",$("#f-addr2").value.trim());
   add("bushoName",$("#f-busho").value.trim());
-  add("notifyEmail",notifyEmail);
   if(yuso) body.yusoShiji=yuso;
   if(yuso==="02"){ body.haitatsuDate=haitatsuDate; body.haitatsuKbn=$("#f-haitatsu-kbn").value; }
   if(hoken>0) body.hokenMoney=hoken;
@@ -1078,7 +1068,7 @@ async function createOkurijo(){
     $("#result").style.display="block";
     $("#result").scrollIntoView({behavior:"smooth",block:"center"});
     addHist({no:j.okurijoNo,name:name,kosu:kosu,at:new Date().toISOString().slice(0,16).replace("T"," "),tome:j.tome||""});
-    toast("✅ 発行しました: "+j.okurijoNo+(j.mailSent?"（発送案内メール送信済み）":""));
+    toast("✅ 発行しました: "+j.okurijoNo);
     loadToday();
   }catch(e){ toast("通信エラー"); }
   $("#btn-go").disabled=false;
@@ -1090,14 +1080,10 @@ async function issueLinked(){ // order-desk連携発行: seinoissue(番号がord
     || $("#f-yuso").value || $("#f-shohin").value!=="0"
     || ["f-kiji3","f-kiji4","f-kiji5","f-name2","f-addr2","f-busho","f-hoken","f-nifuda","f-sai","f-daibiki-shina","f-daibiki-tax"].some(id=>String($("#"+id).value||"").trim());
   if(extras) toast("注文連携発行では荷送人・詳細オプションは使われません");
-  const lMail=$("#f-email").value.trim();
-  if(lMail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lMail)){ toast("メールアドレスの形式が正しくありません"); return; }
-  if(!confirm("【西濃 送り状発行】🟢本番・order-desk連携\n\n注文: "+c.customer+" 様\n\norder-deskの登録情報で出荷登録し、会社PCで自動印刷します。\n送り状番号はorder-deskにも保存されます。"
-    +(lMail?("\n\n通知: "+lMail+" へ発送案内メールを送信（当社名義）\n※不要なら「キャンセル」→通知欄を空にして再実行"):"")
-    +"\n\nよろしいですか？")) return;
+  if(!confirm("【西濃 送り状発行】🟢本番・order-desk連携\n\n注文: "+c.customer+" 様\n\norder-deskの登録情報で出荷登録し、会社PCで自動印刷します。\n送り状番号はorder-deskにも保存されます。よろしいですか？")) return;
   $("#btn-go").disabled=true; toast("西濃へ登録中…");
   try{
-    const r=await fetch(API_URL+"?action=seinoissue&id="+encodeURIComponent(c.id)+"&mail="+encodeURIComponent(lMail)+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass));
+    const r=await fetch(API_URL+"?action=seinoissue&id="+encodeURIComponent(c.id)+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass));
     const j=await r.json();
     if(!j.ok){ toast("失敗: "+(j.error||"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; return; }
     $("#r-no").textContent=j.okurijoNo;
@@ -1106,7 +1092,7 @@ async function issueLinked(){ // order-desk連携発行: seinoissue(番号がord
     $("#result").style.display="block";
     $("#result").scrollIntoView({behavior:"smooth",block:"center"});
     addHist({no:j.okurijoNo,name:c.customer,kosu:parseInt($("#f-kosu").value,10)||1,at:new Date().toISOString().slice(0,16).replace("T"," "),tome:$("#f-tome").checked?$("#f-branch").value:""});
-    toast("✅ 発行しました: "+j.okurijoNo+(j.mailSent?"（発送案内メール送信済み）":""));
+    toast("✅ 発行しました: "+j.okurijoNo);
     unlink();
     loadToday();
   }catch(e){ toast("通信エラー"); }
