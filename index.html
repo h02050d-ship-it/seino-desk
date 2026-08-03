@@ -354,6 +354,7 @@ button.primary:disabled{opacity:.5;cursor:default}
       <button onclick="shimeFax()">📠 FAXだけ</button>
       <button onclick="shimePickup()">🚛 集荷依頼だけ</button>
     </div>
+    <div id="ship-pending" style="display:none;margin-top:12px;background:#fff4e5;border:1px solid #f0d9b0;border-radius:10px;padding:11px 13px"></div>
     <div id="pickup-info" style="display:none;margin-top:12px;background:#f7f6f2;border:1px solid #e7e4db;border-radius:10px;padding:11px 13px;font-size:12px;line-height:1.9;color:#555"></div>
   </div>
 
@@ -532,11 +533,40 @@ function pickupBikoParam(){
   const v=t.value.trim();
   return (v && v!==PICKUP_AUTO_BIKO) ? v : "";
 }
+// 発送処理の未処理ブロック（締めカード内・全部済んだら自動で消える）
+// 「済み」の判定＝ツールで処理(seinoNotified) or モール管理画面で手動処理(注文ステータスが出荷済へ前進)
+function renderShipPending(j){
+  const el=$("#ship-pending"); if(!el) return;
+  const p=j.notifyPending;
+  if(!p||!p.count){ el.style.display="none"; el.innerHTML=""; return; }   // 未処理ゼロ＝ブロックごと削除
+  el.style.display="block";
+  const c=p.counts||{};
+  const names=(p.list||[]).slice(0,6).map(x=>`・${esc(x.customer)} 様（${x.mall==="rakuten"?"楽天":x.mall==="yahoo"?"ヤフー":"市場"}）`).join("<br>");
+  const both=(c.rakuten&&c.yahoo);
+  let btns="";
+  if(both) btns+=`<button onclick="shipPend('seinoshipall')" style="width:100%;padding:10px;margin-top:7px;border:none;background:linear-gradient(90deg,#bf0000,#7b1fa2);color:#fff;border-radius:9px;font-size:13.5px;font-weight:800;cursor:pointer">🚀 楽天・ヤフーまとめて発送処理（${(c.rakuten||0)+(c.yahoo||0)}件）</button>`;
+  if(c.rakuten) btns+=`<button onclick="shipPend('seinorakutenship')" style="width:100%;padding:9px;margin-top:7px;border:none;background:#bf0000;color:#fff;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer">🟥 楽天を発送処理（${c.rakuten}件）</button>`;
+  if(c.yahoo) btns+=`<button onclick="shipPend('seinoyahooship')" style="width:100%;padding:9px;margin-top:7px;border:none;background:#7b1fa2;color:#fff;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer">🟣 ヤフーを発送処理（${c.yahoo}件）</button>`;
+  el.innerHTML=
+    `<div style="font-size:13.5px;font-weight:800;color:#a06414;margin-bottom:5px">⚠️ 発送処理がまだです（${p.count}件）</div>`
+    +`<div style="font-size:12px;color:#7a5a2a;line-height:1.7;margin-bottom:6px">${names}${p.count>6?`<br>…他${p.count-6}件`:""}</div>`
+    +btns
+    +`<div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <a href="javascript:void(0)" onclick="shipRecheck()" style="color:var(--accent);font-size:11.5px">↻ モール側で処理済みか確認する</a>
+        <span style="color:#bbb;font-size:11px">管理画面で手動処理した場合はここで消えます</span>
+      </div>`
+    +`<div style="margin-top:8px;padding-top:7px;border-top:1px dashed #e3cfa6;font-size:11px;color:#8a7350;line-height:1.75">
+        <b>処理の内容</b><br>
+        🟥 <b>楽天</b>：RMSへ発送処理を送信 → 注文が「発送済」になり、楽天から購入者へ<b>発送完了メール</b>が自動送信されます（配送業者＝西濃運輸／お問い合わせ番号＝送り状番号）<br>
+        🟣 <b>ヤフー</b>：注文APIで<b>出荷日・配送業者・お問い合わせ番号を登録</b> → 注文が「出荷済」になり、ヤフーから購入者へ<b>出荷完了のお知らせ</b>が自動送信されます（固定IPサーバー経由で送信）
+      </div>`;
+}
 function renderToday(j){
   const el=$("#today-list");
   $("#today-date").textContent="（"+j.date.slice(0,4)+"/"+j.date.slice(4,6)+"/"+j.date.slice(6,8)+"）";
   updateTodayBadge(j.count);
   renderShime(j);
+  renderShipPending(j);
   renderPickupInfo(j);
   if(!j.count){ el.innerHTML='<div class="hint" style="padding:10px">本日発送する出荷はまだありません（送り状を発行すると表示されます）</div>'; $("#today-tot").style.display="none"; return; }
   $("#today-tot").style.display="flex";
@@ -545,7 +575,7 @@ function renderToday(j){
   const warn=j.has1m?'<div style="background:#fff4e5;border-left:4px solid #e8721b;border-radius:8px;padding:9px 12px;font-size:12px;color:#a06414;margin-bottom:8px">⚠️ 1m以下の材が含まれています。<b>その分の重量は未確定</b>なので、送り状・集荷の総重量を実際の重さで確認してください（1m以下の重量ルールは今後設定）。</div>':"";
   el.innerHTML=warn+j.list.map(x=>{
     const m=(x.src==="desk")?["手入力","other"]:(x.src==="km2")?["KM2","other"]:(MB[x.mall]||["その他","other"]);
-    return `<div class="tlist-item"><span class="mbadge ${m[1]}">${m[0]}</span><div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""}${x.w1m?' <span class="mbadge other" style="background:#e8721b">⚠️重量要確認</span>':""}${x.notified?' <span class="badge">発送処理済</span>':""}<div class="meta">${esc(x.item||"")}</div></div><div style="text-align:right;white-space:nowrap"><div class="meta">${x.kosu}個口・${x.weightKg}kg${x.w1m?"?":""}</div><a class="no" href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${x.okurijoNo}" target="_blank" style="text-decoration:none">${x.okurijoNo}</a></div></div>`;
+    return `<div class="tlist-item"><span class="mbadge ${m[1]}">${m[0]}</span><div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""}${x.w1m?' <span class="mbadge other" style="background:#e8721b">⚠️重量要確認</span>':""}${x.notified?' <span class="badge">発送処理済</span>':""}<div class="meta">${esc(x.item||"")}</div></div><div style="text-align:right;white-space:nowrap"><div class="meta">${x.kosu}個口・${x.weightKg}kg${x.w1m?"?":""}</div><a class="no" href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${x.okurijoNo}" target="_blank" style="text-decoration:none">${x.okurijoNo}</a><div style="margin-top:3px"><button onclick="pdfDownload('${x.okurijoNo}')" title="送り状控えをPDFで保存" style="background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">⬇ 控えPDF</button></div></div></div>`;
   }).join("");
 }
 // キャッシュ即表示＋裏で更新（stale-while-revalidate）。ログイン時に先読みするのでタブ切替は一瞬
@@ -642,6 +672,26 @@ function renderNotify(st){
   $("#notify-modal").style.display="flex";
 }
 function closeNotify(){ $("#notify-modal").style.display="none"; }
+// 締めカードの未処理ブロックから発送処理を実行（完了後に一覧を再取得＝済んだ分は自動で消える）
+async function shipPend(action){
+  const label=action==="seinorakutenship"?"楽天":action==="seinoyahooship"?"ヤフー":"楽天・ヤフー";
+  toast(label+"の発送処理中…");
+  try{
+    const j=await gasGet2(action);
+    toast(j.ok?("✅ "+label+" 発送処理 "+(j.done?j.done.length:0)+"件"+((j.fail&&j.fail.length)?("／失敗"+j.fail.length+"件"):"完了（受注は発送済に）")):"失敗");
+    if(j.fail&&j.fail.length) alert("処理できなかった注文があります:\n"+j.fail.map(f=>"・"+f.customer+"（"+(f.mall==="yahoo"?"ヤフー":"楽天")+"）"+(f.detail||"")).join("\n"));
+  }catch(e){ toast("通信エラー"); }
+  loadToday();
+}
+// モール管理画面で手動処理したぶんをAPIで確認して未処理から外す
+async function shipRecheck(){
+  toast("モールに確認中…");
+  try{
+    const j=await gasGet2("seinonotifyrecheck");
+    toast(j.ok?(j.updated?("✅ 処理済みを"+j.updated+"件確認しました"):"未処理のままです（モール側も未処理）"):"確認できませんでした");
+  }catch(e){ toast("通信エラー"); }
+  loadToday();
+}
 async function refreshNotify(){
   let st; try{ st=await gasGet2("seinonotifystatus"); }catch(e){ return; }
   loadToday();   // 一覧の「発送処理済」バッジも更新
