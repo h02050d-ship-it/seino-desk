@@ -744,6 +744,7 @@ function pickCand(s){
   $("#f-kg").value=String(snapKg(c.weightKg||((parseInt(c.kosu,10)||1)*20)));
   $("#f-kiji1").value=c.kiji1||"";
   $("#f-kiji2").value=c.kiji2||"";
+  $("#f-email").value=c.email||"";   // 注文のメールを通知欄へ自動入力（不要なら消せる）
   const tome=(c.custType==="個人"&&c.branch);
   $("#f-tome").checked=!!tome; if(tome)$("#f-branch").value=c.branch; tomeToggle();
   $("#cand-list").style.display="none";
@@ -1089,10 +1090,14 @@ async function issueLinked(){ // order-desk連携発行: seinoissue(番号がord
     || $("#f-yuso").value || $("#f-shohin").value!=="0"
     || ["f-kiji3","f-kiji4","f-kiji5","f-name2","f-addr2","f-busho","f-hoken","f-nifuda","f-sai","f-daibiki-shina","f-daibiki-tax"].some(id=>String($("#"+id).value||"").trim());
   if(extras) toast("注文連携発行では荷送人・詳細オプションは使われません");
-  if(!confirm("【西濃 送り状発行】🟢本番・order-desk連携\n\n注文: "+c.customer+" 様\n\norder-deskの登録情報で出荷登録し、会社PCで自動印刷します。\n送り状番号はorder-deskにも保存されます。よろしいですか？")) return;
+  const lMail=$("#f-email").value.trim();
+  if(lMail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lMail)){ toast("メールアドレスの形式が正しくありません"); return; }
+  if(!confirm("【西濃 送り状発行】🟢本番・order-desk連携\n\n注文: "+c.customer+" 様\n\norder-deskの登録情報で出荷登録し、会社PCで自動印刷します。\n送り状番号はorder-deskにも保存されます。"
+    +(lMail?("\n\n通知: "+lMail+" へ発送案内メールを送信（当社名義）\n※不要なら「キャンセル」→通知欄を空にして再実行"):"")
+    +"\n\nよろしいですか？")) return;
   $("#btn-go").disabled=true; toast("西濃へ登録中…");
   try{
-    const r=await fetch(API_URL+"?action=seinoissue&id="+encodeURIComponent(c.id)+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass));
+    const r=await fetch(API_URL+"?action=seinoissue&id="+encodeURIComponent(c.id)+"&mail="+encodeURIComponent(lMail)+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass));
     const j=await r.json();
     if(!j.ok){ toast("失敗: "+(j.error||"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; return; }
     $("#r-no").textContent=j.okurijoNo;
@@ -1101,7 +1106,7 @@ async function issueLinked(){ // order-desk連携発行: seinoissue(番号がord
     $("#result").style.display="block";
     $("#result").scrollIntoView({behavior:"smooth",block:"center"});
     addHist({no:j.okurijoNo,name:c.customer,kosu:parseInt($("#f-kosu").value,10)||1,at:new Date().toISOString().slice(0,16).replace("T"," "),tome:$("#f-tome").checked?$("#f-branch").value:""});
-    toast("✅ 発行しました: "+j.okurijoNo);
+    toast("✅ 発行しました: "+j.okurijoNo+(j.mailSent?"（発送案内メール送信済み）":""));
     unlink();
     loadToday();
   }catch(e){ toast("通信エラー"); }
