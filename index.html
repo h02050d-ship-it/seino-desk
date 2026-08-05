@@ -115,6 +115,7 @@ button.primary:disabled{opacity:.5;cursor:default}
   <!-- タブ -->
   <div class="tabs" id="tabs" style="display:none">
     <button id="tab-btn-issue" class="active" onclick="switchTab('issue')">📝 送り状発行</button>
+    <button id="tab-btn-reg" onclick="switchTab('reg')">🖨 出荷登録<span class="cnt" id="tab-cnt-reg" style="display:none">0</span></button>
     <button id="tab-btn-list" onclick="switchTab('list')">📋 出荷一覧表<span class="cnt" id="tab-cnt" style="display:none">0</span></button>
   </div>
 
@@ -301,7 +302,9 @@ button.primary:disabled{opacity:.5;cursor:default}
             </div>
           </div>
 
-          <button class="km2-go" id="btn-go" onclick="createOkurijo()">出 荷 登 録</button>
+          <button class="km2-go" id="btn-go" onclick="createOkurijo(true)">出荷登録 ＋ 印刷</button>
+          <button class="km2-go" id="btn-go2" onclick="createOkurijo(false)" style="background:#fff;color:#c00;border:2px solid #c00;margin-top:6px">出荷登録だけ（印刷しない）</button>
+          <div style="font-size:10.5px;color:#888;line-height:1.6;margin-top:5px">「登録だけ」の分は<b>出荷登録タブ</b>に溜まり、あとからまとめて印刷できます。</div>
         </div>
       </div>
 
@@ -334,6 +337,22 @@ button.primary:disabled{opacity:.5;cursor:default}
         <span class="hint">〒・電話を補完したら、次回のために取引先マスタへ保存できます（空欄のみ埋めます）</span>
       </div>
     </div>
+  </div>
+
+  <!-- 出荷登録タブ：登録済みの管理・あとから印刷 -->
+  <div class="card tab-reg" id="reg-card" style="display:none">
+    <div class="sec" style="display:flex;align-items:center;gap:8px">🖨 出荷登録済み <span id="reg-sub" class="hint" style="margin:0"></span><span style="flex:1"></span>
+      <select id="reg-days" onchange="loadRegistered()" style="border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:12px">
+        <option value="1">今日</option><option value="3">3日</option><option value="7" selected>7日</option><option value="30">30日</option>
+      </select>
+      <button class="hbtn" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer" onclick="loadRegistered()">↻ 更新</button></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 8px">
+      <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="reg-all" onchange="regToggleAll()"> 未印刷をすべて選択</label>
+      <span style="flex:1"></span>
+      <button id="reg-print-btn" onclick="regPrintSelected()" style="background:var(--ok);color:#fff;border:none;border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer">🖨 選択した送り状を印刷</button>
+    </div>
+    <div id="reg-list"><div class="hint" style="padding:10px">読み込み中…</div></div>
+    <div class="hint" style="margin-top:8px">「出荷登録だけ」で発行した送り状はここに溜まります。選んで印刷すると会社PCで1分以内に純正A5印刷されます（再印刷も同じ）。</div>
   </div>
 
   <!-- 出荷の締め -->
@@ -474,16 +493,19 @@ async function doLogin(){
     else toast("メールまたはパスワードが違います");
   }catch(e){ toast("通信エラー"); }
 }
-function showMain(){ $("#login").style.display="none"; $("#tabs").style.display="flex"; $("#btn-logout").style.display="inline-block"; switchTab("issue"); loadToday(); loadServerHist(); }
+function showMain(){ $("#login").style.display="none"; $("#tabs").style.display="flex"; $("#btn-logout").style.display="inline-block"; switchTab("issue"); loadToday(); loadServerHist(); loadRegistered(); }
 // ---- タブ切替 ----
 let CUR_TAB="issue";
 function switchTab(t){
   CUR_TAB=t;
   document.querySelectorAll(".tab-issue").forEach(e=>e.style.display=(t==="issue")?"block":"none");
+  document.querySelectorAll(".tab-reg").forEach(e=>e.style.display=(t==="reg")?"block":"none");
   document.querySelectorAll(".tab-list").forEach(e=>e.style.display=(t==="list")?"block":"none");
   $("#tab-btn-issue").classList.toggle("active",t==="issue");
+  $("#tab-btn-reg").classList.toggle("active",t==="reg");
   $("#tab-btn-list").classList.toggle("active",t==="list");
   if(t==="list") loadToday();
+  if(t==="reg") loadRegistered();
 }
 function updateTodayBadge(n){ const b=$("#tab-cnt"); if(n>0){ b.textContent=n; b.style.display="inline-block"; } else b.style.display="none"; }
 let TODAY_CACHE=null;
@@ -738,6 +760,61 @@ async function km2Sync(){
     }
     toast("照合処理済み（件数変化なし＝漏れはありませんでした）");
   }catch(e){ toast("通信エラー"); }
+}
+// ---- 出荷登録タブ：登録済みの管理・あとから印刷 ----
+let REG_CACHE=null;
+function updateRegBadge(n){ const b=$("#tab-cnt-reg"); if(!b) return; if(n>0){ b.textContent=n; b.style.display="inline-block"; } else b.style.display="none"; }
+async function loadRegistered(){
+  const el=$("#reg-list"); if(!el) return;
+  if(!REG_CACHE) el.innerHTML='<div class="hint" style="padding:10px">読み込み中…</div>';
+  try{
+    const days=($("#reg-days")||{}).value||"7";
+    const j=await gasGet2("seinoregistered","days="+days);
+    if(!j.ok){ el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; return; }
+    REG_CACHE=j; renderRegistered(j);
+  }catch(e){ if(!REG_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
+}
+function renderRegistered(j){
+  const el=$("#reg-list");
+  updateRegBadge(j.unprinted);
+  $("#reg-sub").textContent="（"+j.count+"件・未印刷 "+j.unprinted+"件）";
+  if(!j.count){ el.innerHTML='<div class="hint" style="padding:10px">この期間に出荷登録はありません</div>'; return; }
+  const MB={rakuten:["楽天","rakuten"],yahoo:["Yahoo!","yahoo"],ichiba:["市場","ichiba"]};
+  el.innerHTML=j.list.map(x=>{
+    const m=(x.src==="desk")?["手入力","other"]:(x.src==="km2")?["KM2","other"]:(MB[x.mall]||["その他","other"]);
+    const st=x.printedAt?`<span class="badge">✅ 印刷済 ${esc(String(x.printedAt).slice(5,16))}</span>`
+            :x.queued?`<span class="badge" style="background:#e8721b">⏳ 印刷待ち</span>`
+            :`<span class="badge" style="background:#8a7350">🖨 未印刷</span>`;
+    const cb=(x.printedAt||x.queued)?'<span style="width:17px;flex:none"></span>':`<input type="checkbox" class="reg-cb" value="${esc(x.id)}" style="width:17px;height:17px;flex:none;cursor:pointer">`;
+    const d=x.date||""; const dj=d.length===8?(d.slice(4,6)+"/"+d.slice(6,8)):"";
+    return `<div class="tlist-item">${cb}<span class="mbadge ${m[1]}">${m[0]}</span>
+      <div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""} ${st}
+        <div class="meta">${dj} ${esc(x.item||"")}</div></div>
+      <div style="text-align:right;white-space:nowrap"><div class="meta">${x.kosu}個口・${x.weightKg}kg</div>
+        <a class="no" href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${x.okurijoNo}" target="_blank" style="text-decoration:none">${x.okurijoNo}</a>
+        <div style="margin-top:3px;display:flex;gap:4px;justify-content:flex-end">
+          <button onclick="regPrintOne('${esc(x.id)}')" style="background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">${x.printedAt?"🖨 再印刷":"🖨 印刷"}</button>
+          <button onclick="pdfDownload('${x.okurijoNo}')" style="background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">⬇ 控えPDF</button>
+        </div></div></div>`;
+  }).join("");
+  const all=$("#reg-all"); if(all) all.checked=false;
+}
+function regToggleAll(){ const on=$("#reg-all").checked; document.querySelectorAll(".reg-cb").forEach(c=>c.checked=on); }
+async function regPrintOne(id){ await regQueue([id]); }
+async function regPrintSelected(){
+  const ids=[...document.querySelectorAll(".reg-cb")].filter(c=>c.checked).map(c=>c.value);
+  if(!ids.length){ toast("印刷する送り状を選んでください"); return; }
+  if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">🖨 選択した送り状を印刷</div><b>'+ids.length+'件</b>の送り状を会社PCで印刷します（1分以内に出ます）。<br>よろしいですか？')) return;
+  await regQueue(ids);
+}
+async function regQueue(ids){
+  toast("印刷キューに登録中…");
+  try{
+    const j=await gasGet2("seinoprintqueue","ids="+encodeURIComponent(ids.join(",")));
+    toast(j.ok?("✅ "+j.queued+"件を印刷キューへ（1分以内に会社PCで出ます）"):("失敗: "+(j.error||"")));
+  }catch(e){ toast("通信エラー"); }
+  loadRegistered();
+  setTimeout(loadRegistered, 70000);   // watcherの印刷完了後に「印刷済」へ更新
 }
 function logout(){ localStorage.removeItem("seinodesk_cred"); ssoClear(); location.reload(); }
 
@@ -1050,8 +1127,9 @@ function autoWeight(){
   $("#f-kg").value=String(snapKg(k*20));   // 2m換算 20kg/口 で自動選択（手で変えたい時はプルダウンで変更）
 }
 initQtyKgSelects();
-async function createOkurijo(){
-  if(LINKED) return issueLinked();
+async function createOkurijo(doPrintArg){
+  const wantPrint=(doPrintArg!==false);
+  if(LINKED) return issueLinked(wantPrint);
   const tome=$("#f-tome").checked;
   const branch=tome?$("#f-branch").value.trim():"";
   const name=$("#f-name").value.trim(), tel=$("#f-tel").value.trim();
@@ -1072,7 +1150,7 @@ async function createOkurijo(){
   const senderOther=document.querySelector('input[name="sender"]:checked').value==="other";
   const sName=senderOther?$("#s-name").value.trim():"";
   const motochaku=document.querySelector('input[name="motochaku"]:checked').value;
-  const doPrint=$("#f-print").checked;
+  const doPrint=wantPrint;
   const date=$("#f-date").value.replace(/-/g,"");
   const YUSO_LABEL={'02':'配達指定','03':'取扱注意','04':'われもの注意','05':'ガラス注意','06':'コワレモノ','07':'水濡れ注意','08':'精密機械','09':'下積厳禁','10':'横積厳禁','11':'平積厳禁','12':'立積厳禁','13':'天地無用','14':'角つき厳禁','15':'貴重品','16':'高価品','17':'予約'};
   const SHOHIN_LABEL={'0':'一般','1':'宅配','3':'ミニ便','8':'通販便','9':'ビジネス便'};
@@ -1094,7 +1172,7 @@ async function createOkurijo(){
     +"\n印刷: "+(doPrint?"会社PCで自動印刷":"しない（登録のみ）")
     +"\n\nよろしいですか？";
   if(!confirm(msg)) return;
-  $("#btn-go").disabled=true; toast("西濃へ登録中…");
+  $("#btn-go").disabled=true; $("#btn-go2").disabled=true; toast("西濃へ登録中…");
   const body={email:CRED.email,pass:CRED.pass,action:"seinocreate",
     customer:name,zip:zip,addr:addr,tel:tel,kosu:kosu,juryoKg:kg,motochaku:motochaku,
     tomeBranch:branch,kiji1:$("#f-kiji1").value.trim(),kiji2:$("#f-kiji2").value.trim(),
@@ -1116,19 +1194,19 @@ async function createOkurijo(){
   try{
     const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});
     const j=await r.json();
-    if(!j.ok){ toast("失敗: "+(j.error||"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; return; }
+    if(!j.ok){ toast("失敗: "+(j.error||"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; $("#btn-go2").disabled=false; return; }
     $("#r-no").textContent=j.okurijoNo;
-    $("#r-note").innerHTML=(j.tome?("🏢 "+j.tome+"支店止め（〒"+j.zip+"）　"):"")+(j.print?'<span class="badge">🖨 印刷キュー済（1分以内に出ます）</span>':"登録のみ（印刷なし）");
+    $("#r-note").innerHTML=(j.tome?("🏢 "+j.tome+"支店止め（〒"+j.zip+"）　"):"")+(j.print?'<span class="badge">🖨 印刷キュー済（1分以内に出ます）</span>':'<span class="badge" style="background:#8a7350">登録のみ（出荷登録タブから印刷できます）</span>');
     $("#r-track").href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1="+j.okurijoNo;
     $("#result").style.display="block";
     $("#result").scrollIntoView({behavior:"smooth",block:"center"});
     addHist({no:j.okurijoNo,name:name,kosu:kosu,at:new Date().toISOString().slice(0,16).replace("T"," "),tome:j.tome||""});
     toast("✅ 発行しました: "+j.okurijoNo);
-    loadToday();
+    loadToday(); loadRegistered();
   }catch(e){ toast("通信エラー"); }
-  $("#btn-go").disabled=false;
+  $("#btn-go").disabled=false; $("#btn-go2").disabled=false;
 }
-async function issueLinked(){ // order-desk連携発行: seinoissue(番号がorder-deskに書き戻る・自動印刷)
+async function issueLinked(wantPrint){ // order-desk連携発行: seinoissue(番号がorder-deskに書き戻る・自動印刷)
   const c=LINKED;
   // 手入力発行専用の項目（荷送人上書き・詳細オプション）は連携発行では使われない
   const extras=(document.querySelector('input[name="sender"]:checked').value==="other"&&$("#s-name").value.trim())
@@ -1136,22 +1214,22 @@ async function issueLinked(){ // order-desk連携発行: seinoissue(番号がord
     || ["f-kiji3","f-kiji4","f-kiji5","f-name2","f-addr2","f-busho","f-hoken","f-nifuda","f-sai","f-daibiki-shina","f-daibiki-tax"].some(id=>String($("#"+id).value||"").trim());
   if(extras) toast("注文連携発行では荷送人・詳細オプションは使われません");
   if(!confirm("【西濃 送り状発行】🟢本番・order-desk連携\n\n注文: "+c.customer+" 様\n\norder-deskの登録情報で出荷登録し、会社PCで自動印刷します。\n送り状番号はorder-deskにも保存されます。よろしいですか？")) return;
-  $("#btn-go").disabled=true; toast("西濃へ登録中…");
+  $("#btn-go").disabled=true; $("#btn-go2").disabled=true; toast("西濃へ登録中…");
   try{
-    const r=await fetch(API_URL+"?action=seinoissue&id="+encodeURIComponent(c.id)+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass));
+    const r=await fetch(API_URL+"?action=seinoissue&id="+encodeURIComponent(c.id)+(wantPrint===false?"&print=0":"")+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass));
     const j=await r.json();
-    if(!j.ok){ toast("失敗: "+(j.error||"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; return; }
+    if(!j.ok){ toast("失敗: "+(j.error||"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; $("#btn-go2").disabled=false; return; }
     $("#r-no").textContent=j.okurijoNo;
-    $("#r-note").innerHTML='🔗 order-deskに書き戻し済　<span class="badge">🖨 印刷キュー済（1分以内に出ます）</span>'+(j.note?(" "+j.note):"");
+    $("#r-note").innerHTML='🔗 order-deskに書き戻し済　'+(wantPrint===false?'<span class="badge" style="background:#8a7350">登録のみ（出荷登録タブから印刷できます）</span>':'<span class="badge">🖨 印刷キュー済（1分以内に出ます）</span>')+(j.note?(" "+j.note):"");
     $("#r-track").href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1="+j.okurijoNo;
     $("#result").style.display="block";
     $("#result").scrollIntoView({behavior:"smooth",block:"center"});
     addHist({no:j.okurijoNo,name:c.customer,kosu:parseInt($("#f-kosu").value,10)||1,at:new Date().toISOString().slice(0,16).replace("T"," "),tome:$("#f-tome").checked?$("#f-branch").value:""});
     toast("✅ 発行しました: "+j.okurijoNo);
     unlink();
-    loadToday();
+    loadToday(); loadRegistered();
   }catch(e){ toast("通信エラー"); }
-  $("#btn-go").disabled=false;
+  $("#btn-go").disabled=false; $("#btn-go2").disabled=false;
 }
 async function pdfBlob(no){ // seinopdf(base64)→Blob。失敗時null
   const r=await fetch(API_URL+"?action=seinopdf&no="+encodeURIComponent(no)+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass));
