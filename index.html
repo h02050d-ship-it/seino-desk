@@ -1270,11 +1270,35 @@ async function pdfView(no){
     window.open(URL.createObjectURL(blob),"_blank");
   }catch(e){ toast("通信エラー"); }
 }
-async function pdfDownload(no){ // 相手に「この内容で送ります」と渡す用にファイル保存
+// 送り状PDFは個口の数だけページがある（2個口なら2枚）。控え・FAX添付は1枚目だけでよいので切り出す。
+let _pdfLib=null;
+function loadPdfLib(){
+  if(_pdfLib) return _pdfLib;
+  _pdfLib=new Promise((res,rej)=>{
+    if(window.PDFLib) return res(window.PDFLib);
+    const s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js";
+    s.onload=()=>res(window.PDFLib); s.onerror=()=>rej(new Error("pdf-lib load失敗"));
+    document.head.appendChild(s);
+  });
+  return _pdfLib;
+}
+async function firstPageBlob(blob){
+  try{
+    const L=await loadPdfLib();
+    const src=await L.PDFDocument.load(await blob.arrayBuffer());
+    if(src.getPageCount()<=1) return blob;
+    const out=await L.PDFDocument.create();
+    const [p]=await out.copyPages(src,[0]); out.addPage(p);
+    return new Blob([await out.save()],{type:"application/pdf"});
+  }catch(e){ return blob; }   // 切り出せない時は全ページのまま保存（保存できないより良い）
+}
+async function pdfDownload(no){ // 相手に「この内容で送ります」と渡す用にファイル保存（1枚目のみ）
   toast("PDF取得中…");
   try{
-    const blob=await pdfBlob(no);
+    let blob=await pdfBlob(no);
     if(!blob){ toast("PDFを取得できませんでした"); return; }
+    blob=await firstPageBlob(blob);
     const a=document.createElement("a");
     a.href=URL.createObjectURL(blob); a.download="西濃送り状_"+no+".pdf";
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
