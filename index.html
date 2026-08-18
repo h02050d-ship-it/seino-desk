@@ -117,6 +117,7 @@ button.primary:disabled{opacity:.5;cursor:default}
     <button id="tab-btn-issue" class="active" onclick="switchTab('issue')">📝 送り状発行</button>
     <button id="tab-btn-reg" onclick="switchTab('reg')">🖨 出荷登録<span class="cnt" id="tab-cnt-reg" style="display:none">0</span></button>
     <button id="tab-btn-list" onclick="switchTab('list')">📋 出荷一覧表<span class="cnt" id="tab-cnt" style="display:none">0</span></button>
+    <button id="tab-btn-hist" onclick="switchTab('hist')">🗂 出荷履歴</button>
   </div>
 
   <!-- 作成フォーム -->
@@ -353,7 +354,18 @@ button.primary:disabled{opacity:.5;cursor:default}
       <button id="reg-print-btn" onclick="regPrintSelected()" style="background:var(--ok);color:#fff;border:none;border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer">🖨 選択した送り状を印刷</button>
     </div>
     <div id="reg-list"><div class="hint" style="padding:10px">読み込み中…</div></div>
-    <div class="hint" style="margin-top:8px">「出荷登録だけ」で発行した送り状はここに溜まります。選んで印刷すると会社PCで1分以内に純正A5印刷されます（再印刷も同じ）。</div>
+    <div class="hint" style="margin-top:8px">「出荷登録だけ」で発行した<b>まだ印刷していない送り状</b>がここに溜まります。選んで印刷すると会社PCで1分以内に純正A5印刷されます。<br>印刷が済んだものはこの一覧から消え、<b>「出荷履歴」タブ</b>で確認・再印刷できます。</div>
+  </div>
+
+  <!-- 出荷履歴タブ：過去の出荷登録（印刷済み含む） -->
+  <div class="card tab-hist" id="shist-card" style="display:none">
+    <div class="sec" style="display:flex;align-items:center;gap:8px">🗂 出荷履歴 <span id="shist-sub" class="hint" style="margin:0"></span><span style="flex:1"></span>
+      <select id="shist-days" onchange="loadShipHist()" style="border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:12px">
+        <option value="7">7日</option><option value="30" selected>30日</option><option value="90">90日</option><option value="180">180日</option>
+      </select>
+      <button class="hbtn" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer" onclick="loadShipHist()">↻ 更新</button></div>
+    <div id="shist-list"><div class="hint" style="padding:10px">読み込み中…</div></div>
+    <div class="hint" style="margin-top:8px">過去に出荷登録した送り状の一覧です（印刷済みも含む）。ここからも<b>再印刷</b>と<b>控えPDF保存</b>ができます。</div>
   </div>
 
   <!-- 出荷の締め -->
@@ -502,11 +514,14 @@ function switchTab(t){
   document.querySelectorAll(".tab-issue").forEach(e=>e.style.display=(t==="issue")?"block":"none");
   document.querySelectorAll(".tab-reg").forEach(e=>e.style.display=(t==="reg")?"block":"none");
   document.querySelectorAll(".tab-list").forEach(e=>e.style.display=(t==="list")?"block":"none");
+  document.querySelectorAll(".tab-hist").forEach(e=>e.style.display=(t==="hist")?"block":"none");
   $("#tab-btn-issue").classList.toggle("active",t==="issue");
   $("#tab-btn-reg").classList.toggle("active",t==="reg");
   $("#tab-btn-list").classList.toggle("active",t==="list");
+  $("#tab-btn-hist").classList.toggle("active",t==="hist");
   if(t==="list") loadToday();
   if(t==="reg") loadRegistered();
+  if(t==="hist") loadShipHist();
 }
 function updateTodayBadge(n){ const b=$("#tab-cnt"); if(n>0){ b.textContent=n; b.style.display="inline-block"; } else b.style.display="none"; }
 let TODAY_CACHE=null;
@@ -775,30 +790,53 @@ async function loadRegistered(){
     REG_CACHE=j; renderRegistered(j);
   }catch(e){ if(!REG_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
 }
+// 出荷登録／出荷履歴で共通の行表示（withCb=trueなら未印刷にチェックボックスを出す）
+function seinoRowHtml(x, withCb){
+  const MB={rakuten:["楽天","rakuten"],yahoo:["Yahoo!","yahoo"],ichiba:["市場","ichiba"]};
+  const m=(x.src==="desk")?["手入力","other"]:(x.src==="km2")?["KM2","other"]:(MB[x.mall]||["その他","other"]);
+  const st=x.printedAt?`<span class="badge">✅ 印刷済 ${esc(String(x.printedAt).slice(5,16))}</span>`
+          :x.queued?`<span class="badge" style="background:#e8721b">⏳ 印刷待ち</span>`
+          :`<span class="badge" style="background:#8a7350">🖨 未印刷</span>`;
+  const cb=!withCb?"":((x.printedAt||x.queued)?'<span style="width:17px;flex:none"></span>'
+          :`<input type="checkbox" class="reg-cb" value="${esc(x.id)}" style="width:17px;height:17px;flex:none;cursor:pointer">`);
+  const d=x.date||""; const dj=d.length===8?(d.slice(4,6)+"/"+d.slice(6,8)):"";
+  return `<div class="tlist-item">${cb}<span class="mbadge ${m[1]}">${m[0]}</span>
+    <div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""} ${st}
+      <div class="meta">${dj} ${esc(x.item||"")}</div></div>
+    <div style="text-align:right;white-space:nowrap"><div class="meta">${x.kosu}個口・${x.weightKg}kg</div>
+      <a class="no" href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${x.okurijoNo}" target="_blank" style="text-decoration:none">${x.okurijoNo}</a>
+      <div style="margin-top:3px;display:flex;gap:4px;justify-content:flex-end">
+        <button onclick="regPreviewPrint('${esc(x.id)}','${x.okurijoNo}')" style="background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">${x.printedAt?"🖨 再印刷":"🖨 印刷"}</button>
+        <button onclick="pdfDownload('${x.okurijoNo}')" style="background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">⬇ 控えPDF</button>
+      </div></div></div>`;
+}
+// 出荷登録タブ＝これから印刷するものだけ（印刷済みは出荷履歴タブへ）
 function renderRegistered(j){
   const el=$("#reg-list");
-  updateRegBadge(j.unprinted);
-  $("#reg-sub").textContent="（"+j.count+"件・未印刷 "+j.unprinted+"件）";
-  if(!j.count){ el.innerHTML='<div class="hint" style="padding:10px">この期間に出荷登録はありません</div>'; return; }
-  const MB={rakuten:["楽天","rakuten"],yahoo:["Yahoo!","yahoo"],ichiba:["市場","ichiba"]};
-  el.innerHTML=j.list.map(x=>{
-    const m=(x.src==="desk")?["手入力","other"]:(x.src==="km2")?["KM2","other"]:(MB[x.mall]||["その他","other"]);
-    const st=x.printedAt?`<span class="badge">✅ 印刷済 ${esc(String(x.printedAt).slice(5,16))}</span>`
-            :x.queued?`<span class="badge" style="background:#e8721b">⏳ 印刷待ち</span>`
-            :`<span class="badge" style="background:#8a7350">🖨 未印刷</span>`;
-    const cb=(x.printedAt||x.queued)?'<span style="width:17px;flex:none"></span>':`<input type="checkbox" class="reg-cb" value="${esc(x.id)}" style="width:17px;height:17px;flex:none;cursor:pointer">`;
-    const d=x.date||""; const dj=d.length===8?(d.slice(4,6)+"/"+d.slice(6,8)):"";
-    return `<div class="tlist-item">${cb}<span class="mbadge ${m[1]}">${m[0]}</span>
-      <div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""} ${st}
-        <div class="meta">${dj} ${esc(x.item||"")}</div></div>
-      <div style="text-align:right;white-space:nowrap"><div class="meta">${x.kosu}個口・${x.weightKg}kg</div>
-        <a class="no" href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${x.okurijoNo}" target="_blank" style="text-decoration:none">${x.okurijoNo}</a>
-        <div style="margin-top:3px;display:flex;gap:4px;justify-content:flex-end">
-          <button onclick="regPreviewPrint('${esc(x.id)}','${x.okurijoNo}')" style="background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">${x.printedAt?"🖨 再印刷":"🖨 印刷"}</button>
-          <button onclick="pdfDownload('${x.okurijoNo}')" style="background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">⬇ 控えPDF</button>
-        </div></div></div>`;
-  }).join("");
+  const list=(j.list||[]).filter(x=>!x.printedAt);
+  updateRegBadge(list.length);
+  $("#reg-sub").textContent="（未印刷 "+list.length+"件）";
+  if(!list.length){ el.innerHTML='<div class="hint" style="padding:10px">未印刷の送り状はありません。<br>印刷済みのものは「🗂 出荷履歴」タブで確認・再印刷できます。</div>'; return; }
+  el.innerHTML=list.map(x=>seinoRowHtml(x,true)).join("");
   const all=$("#reg-all"); if(all) all.checked=false;
+}
+// 出荷履歴タブ＝過去の出荷登録すべて（印刷済み含む）
+let SHIST_CACHE=null;
+async function loadShipHist(){
+  const el=$("#shist-list"); if(!el) return;
+  if(!SHIST_CACHE) el.innerHTML='<div class="hint" style="padding:10px">読み込み中…</div>';
+  try{
+    const days=($("#shist-days")||{}).value||"30";
+    const j=await gasGet2("seinoregistered","days="+days);
+    if(!j.ok){ el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; return; }
+    SHIST_CACHE=j; renderShipHist(j);
+  }catch(e){ if(!SHIST_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
+}
+function renderShipHist(j){
+  const el=$("#shist-list");
+  $("#shist-sub").textContent="（"+j.count+"件）";
+  if(!j.count){ el.innerHTML='<div class="hint" style="padding:10px">この期間の出荷登録はありません</div>'; return; }
+  el.innerHTML=j.list.map(x=>seinoRowHtml(x,false)).join("");
 }
 function regToggleAll(){ const on=$("#reg-all").checked; document.querySelectorAll(".reg-cb").forEach(c=>c.checked=on); }
 async function regPrintOne(id){ await regQueue([id]); }
@@ -837,8 +875,8 @@ async function regQueue(ids){
     const j=await gasGet2("seinoprintqueue","ids="+encodeURIComponent(ids.join(",")));
     toast(j.ok?("✅ "+j.queued+"件を印刷キューへ（1分以内に会社PCで出ます）"):("失敗: "+(j.error||"")));
   }catch(e){ toast("通信エラー"); }
-  loadRegistered();
-  setTimeout(loadRegistered, 70000);   // watcherの印刷完了後に「印刷済」へ更新
+  loadRegistered(); loadShipHist();
+  setTimeout(()=>{ loadRegistered(); loadShipHist(); }, 70000);   // watcherの印刷完了後に「印刷済」へ移す
 }
 function logout(){ localStorage.removeItem("seinodesk_cred"); ssoClear(); location.reload(); }
 
