@@ -202,11 +202,12 @@ button.primary:disabled{opacity:.5;cursor:default}
             <div class="km2-row">
               <div class="km2-lbl">個数・重量</div>
               <div class="km2-val"><select id="f-kosu" onchange="autoWeight()" style="flex:0 0 72px"></select>個口
-                <select id="f-kg" style="flex:0 0 96px"></select>kg</div>
+                <select id="f-kg" onchange="onKgPicked()" style="flex:0 0 96px"></select>kg</div>
             </div>
             <div class="km2-row">
               <div class="km2-lbl">記事1・2</div>
-              <div class="km2-val"><input type="text" id="f-kiji1" maxlength="15" placeholder="2m×5" style="flex:1 1 100px"><input type="text" id="f-kiji2" maxlength="15" placeholder="3m×2" style="flex:1 1 100px"></div>
+              <div class="km2-val"><input type="text" id="f-kiji1" maxlength="15" placeholder="2m×5" style="flex:1 1 100px"><input type="text" id="f-kiji2" maxlength="15" placeholder="3m×2" style="flex:1 1 100px">
+                <button type="button" class="km2-btn" onclick="suggestKiji(true)" title="個口数と重量から長さ×束数を推定します">🧮 推定</button></div>
             </div>
             <div class="km2-row">
               <div class="km2-lbl">記事3・4</div>
@@ -1053,6 +1054,8 @@ async function unhidePartner(idx){ // 非表示を解除（表示に戻す）
 function pickPartner(idx){ // 空の項目は触らず、partnerに値がある欄だけ転記
   const p=PARTNERS[idx]; if(!p) return;
   if(PT_TARGET==='sender'){ // 荷送人欄へ転記（住所は住所1/住所2に分割）
+    const rOther=document.querySelector('input[name="sender"][value="other"]');  // 選んだ時点で「別の荷送人で出す」に自動チェック
+    if(rOther && !rOther.checked){ rOther.checked=true; senderToggle(); }
     if(p.name) $("#s-name").value=String(p.name).slice(0,20);
     if(p.tel){ const t=String(p.tel).replace(/[^0-9]/g,""); if(t) $("#s-tel").value=t; }
     if(p.addr){
@@ -1065,7 +1068,7 @@ function pickPartner(idx){ // 空の項目は触らず、partnerに値がある�
       $("#s-addr2").value=a2.trim().slice(0,20);
     }
     closePartnerModal();
-    toast("荷送人に転記しました。内容を確認してください");
+    toast("「別の荷送人で出す」に切替えて転記しました");
     return;
   }
   if(p.name) $("#f-name").value=p.name;
@@ -1150,6 +1153,60 @@ function autoWeight(){
   $("#f-kg").value=String(snapKg(k*20));   // 2m換算 20kg/口 で自動選択（手で変えたい時はプルダウンで変更）
 }
 initQtyKgSelects();
+
+/* ===== 個口数×重量から「長さ×束数」を推定して記事へ（手入力発行のみ） =====
+   1束あたりの重量: 2m=20kg / 3m=30kg / 4m=40kg（運賃計算ツールのDANBALLと同じ基準）
+   ※1m束も20kg＝2mと同じなので数字だけでは区別できない（1m材は通常佐川）→候補は2m/3m/4mで作る */
+const TABA_KG={2:20,3:30,4:40};
+function estimateKiji(kosu,kg){     // 束数合計=kosu・重量合計=kg になる組合せを列挙
+  const out=[];
+  for(let c=0;c<=kosu;c++){         // 4m
+    for(let b=0;b<=kosu-c;b++){     // 3m
+      const a=kosu-b-c;             // 2m
+      const w=a*TABA_KG[2]+b*TABA_KG[3]+c*TABA_KG[4];
+      const parts=[[2,a],[3,b],[4,c]].filter(x=>x[1]>0);
+      if(!parts.length) continue;
+      out.push({parts,w,diff:Math.abs(w-kg),kinds:parts.length});
+    }
+  }
+  out.sort((x,y)=> x.diff-y.diff || x.kinds-y.kinds || y.parts[0][1]-x.parts[0][1]);
+  const exact=out.filter(x=>x.diff===0).slice(0,4);
+  return exact.length?{exact:true,list:exact}:{exact:false,list:out.slice(0,3)};
+}
+function kijiLabel(cand){ return cand.parts.map(p=>p[0]+"m×"+p[1]).join("　"); }
+async function suggestKiji(manual){ // manual=true: 🧮ボタン（記事に文字が入っていても上書き確認）
+  const kosu=parseInt($("#f-kosu").value,10)||0;
+  const kg=parseInt($("#f-kg").value,10)||0;
+  if(kosu<1||kg<1){ if(manual) toast("個口数と重量を入れてください"); return; }
+  const r=estimateKiji(kosu,kg);
+  if(!r.list.length){ if(manual) toast("推定できませんでした"); return; }
+  const has=["f-kiji1","f-kiji2","f-kiji3"].some(id=>String($("#"+id).value||"").trim());
+  const rows=r.list.map((c,i)=>
+    '<label style="display:flex;gap:8px;align-items:center;padding:7px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;cursor:pointer">'
+    +'<input type="radio" name="kijicand" value="'+i+'"'+(i===0?" checked":"")+'>'
+    +'<b style="font-size:15px">'+esc(kijiLabel(c))+'</b>'
+    +'<span style="flex:1"></span><span style="color:var(--muted);font-size:12px">計'+c.w+'kg'+(c.diff?"（入力は"+kg+"kg）":"")+'</span></label>').join("");
+  const ok=await uiConfirm(
+    '<div style="font-size:15px;font-weight:700;margin-bottom:8px">🧮 記事に入れる内容の推定</div>'
+    +'<div style="background:#f0f7f3;border-radius:9px;padding:9px 12px;margin-bottom:10px;font-size:13px">'
+      +'入力: <b>'+kosu+'個口</b>／<b>'+kg+'kg</b>　<span style="color:var(--muted)">（2m=20kg・3m=30kg・4m=40kg／束）</span></div>'
+    +(r.exact?'':'<div style="color:var(--warn);font-size:12px;margin-bottom:8px">⚠️ ぴったり合う組合せがありません。近いものを出しています（重量か個口を確認してください）</div>')
+    +rows
+    +(has?'<div style="color:var(--warn);font-size:12px;margin-top:8px">※すでに入っている記事は上書きされます</div>':'')
+    +'<div style="color:var(--muted);font-size:12px;margin-top:8px">この内容を記事欄に入力していいですか？</div>');
+  if(!ok) return;
+  const sel=document.querySelector('input[name="kijicand"]:checked');
+  const cand=r.list[sel?parseInt(sel.value,10):0]; if(!cand) return;
+  const ids=["f-kiji1","f-kiji2","f-kiji3"];
+  ids.forEach(id=>{ $("#"+id).value=""; });
+  cand.parts.slice(0,3).forEach((p,i)=>{ $("#"+ids[i]).value=p[0]+"m×"+p[1]; });
+  toast("記事に入力しました");
+}
+function onKgPicked(){              // 重量を人が選んだ直後に推定を提案（記事が空・手入力発行のときだけ）
+  if(LINKED) return;                                            // order-desk連携中は記事が来ているので出さない
+  if(["f-kiji1","f-kiji2","f-kiji3"].some(id=>String($("#"+id).value||"").trim())) return;
+  setTimeout(()=>suggestKiji(false),120);
+}
 async function createOkurijo(doPrintArg){
   const wantPrint=(doPrintArg!==false);
   if(LINKED) return issueLinked(wantPrint);
