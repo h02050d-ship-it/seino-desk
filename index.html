@@ -630,8 +630,7 @@ async function loadNouhinPending(){
   }catch(e){ NOUHIN_LOADING=false; }
 }
 async function nouhinDone(id){
-  if(!confirm("この出荷の納品書を「作成済み」にしますか？
-（納品書ツールを使わず手書き等で作成した場合の消し込み用）")) return;
+  if(!confirm("この出荷の納品書を「作成済み」にしますか？\n（納品書ツールを使わず手書き等で作成した場合の消し込み用）")) return;
   try{ const j=await gasGet2("nouhinmarkdone","id="+encodeURIComponent(id)); toast(j.ok?"✅ 作成済みにしました":"失敗: "+(j.error||"")); }catch(e){ toast("通信エラー"); }
   loadNouhinPending();
 }
