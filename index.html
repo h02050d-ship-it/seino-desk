@@ -387,6 +387,7 @@ button.primary:disabled{opacity:.5;cursor:default}
       <button onclick="shimePickup()">🚛 集荷依頼だけ</button>
     </div>
     <div id="ship-pending" style="display:none;margin-top:12px;background:#fff4e5;border:1px solid #f0d9b0;border-radius:10px;padding:11px 13px"></div>
+    <div id="nouhin-pending" style="display:none;margin-top:12px;background:#eef3fb;border:1px solid #c9d9f0;border-radius:10px;padding:11px 13px"></div>
     <div id="pickup-info" style="display:none;margin-top:12px;background:#f7f6f2;border:1px solid #e7e4db;border-radius:10px;padding:11px 13px;font-size:12px;line-height:1.9;color:#555"></div>
   </div>
 
@@ -604,6 +605,36 @@ function renderShipPending(j){
         🟣 <b>ヤフー</b>：注文APIで<b>出荷日・配送業者・お問い合わせ番号を登録</b> → 注文が「出荷済」になり、ヤフーから購入者へ<b>出荷完了のお知らせ</b>が自動送信されます（固定IPサーバー経由で送信）
       </div>`;
 }
+// 納品書リマインド（市場×西濃出荷）: 納品書DBに作成が確認できたら自動で消える
+let NOUHIN_LOADING=false;
+async function loadNouhinPending(){
+  const el=$("#nouhin-pending"); if(!el||NOUHIN_LOADING) return;
+  NOUHIN_LOADING=true;
+  try{
+    const j=await gasGet2("nouhinpending");
+    NOUHIN_LOADING=false;
+    if(!j.ok||!j.count){ el.style.display="none"; el.innerHTML=""; return; }
+    el.style.display="block";
+    const rows=j.list.map(x=>{
+      const d=x.date||""; const dj=d.length===8?(d.slice(4,6)+"/"+d.slice(6,8)):"";
+      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #dde7f5">
+        <b style="flex:1;min-width:0">${esc(x.customer)}</b>
+        <span style="font-size:11.5px;color:#888">${dj}出荷・${x.okurijoNo}</span>
+        <button onclick="nouhinDone('${esc(x.id)}')" style="background:#fff;border:1px solid #c9d9f0;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;white-space:nowrap">✅ 作成済みにする</button>
+      </div>`;
+    }).join("");
+    el.innerHTML=`<div style="font-size:13.5px;font-weight:800;color:#1a4d8f;margin-bottom:4px">📄 納品書の作成がまだです（${j.count}件）</div>
+      <div style="font-size:11.5px;color:#4a6a94;margin-bottom:6px">市場・取引先向けの西濃出荷です。納品書を作成すると自動でここから消えます（17時に残っていればLINEでお知らせ）。</div>
+      ${rows}
+      <a href="${j.toolUrl}" target="_blank" style="display:block;text-align:center;background:#1a4d8f;color:#fff;border-radius:9px;padding:9px;margin-top:8px;font-size:13px;font-weight:700;text-decoration:none">📄 納品書ツールを開く</a>`;
+  }catch(e){ NOUHIN_LOADING=false; }
+}
+async function nouhinDone(id){
+  if(!confirm("この出荷の納品書を「作成済み」にしますか？
+（納品書ツールを使わず手書き等で作成した場合の消し込み用）")) return;
+  try{ const j=await gasGet2("nouhinmarkdone","id="+encodeURIComponent(id)); toast(j.ok?"✅ 作成済みにしました":"失敗: "+(j.error||"")); }catch(e){ toast("通信エラー"); }
+  loadNouhinPending();
+}
 function renderToday(j){
   const el=$("#today-list");
   $("#today-date").textContent="（"+j.date.slice(0,4)+"/"+j.date.slice(4,6)+"/"+j.date.slice(6,8)+"）";
@@ -611,6 +642,7 @@ function renderToday(j){
   renderShime(j);
   renderShipPending(j);
   renderPickupInfo(j);
+  loadNouhinPending();
   if(!j.count){ el.innerHTML='<div class="hint" style="padding:10px">本日発送する出荷はまだありません（送り状を発行すると表示されます）</div>'; $("#today-tot").style.display="none"; return; }
   $("#today-tot").style.display="flex";
   $("#today-tot").innerHTML=`<span>件数 <b>${j.count}</b>件</span><span>合計 <b>${j.kosu}</b>個口</span><span>総重量 <b>${j.weightKg}</b>kg</span>`;
