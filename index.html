@@ -732,17 +732,20 @@ function renderNotify(st){
   }).join("");
   let btns="";
   const apiCnt=(c.rakuten||0)+(c.yahoo||0);
-  if(c.rakuten&&c.yahoo) btns+=`<button onclick="notifyShipAll()" style="width:100%;padding:12px;margin-top:8px;border:none;background:linear-gradient(90deg,#bf0000,#7b1fa2);color:#fff;border-radius:10px;font-size:14.5px;font-weight:800;cursor:pointer">🚀 楽天・ヤフーまとめて発送処理（${apiCnt}件一括）</button>`;
-  if(c.rakuten) btns+=`<button onclick="notifyRakuten()" style="width:100%;padding:11px;margin-top:8px;border:none;background:#bf0000;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟥 楽天だけ発送処理（自動・${c.rakuten}件）</button>`;
-  if(c.yahoo) btns+=`<button onclick="notifyYahoo()" style="width:100%;padding:11px;margin-top:8px;border:none;background:#7b1fa2;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟣 ヤフーだけ発送処理（自動・${c.yahoo}件）</button>`;
+  if(c.rakuten&&c.yahoo) btns+=`<button onclick="notifyShipAll()" style="width:100%;padding:12px;margin-top:8px;border:none;background:linear-gradient(90deg,#bf0000,#7b1fa2);color:#fff;border-radius:10px;font-size:14.5px;font-weight:800;cursor:pointer">🚀 楽天・ヤフーまとめて今すぐ発送処理（${apiCnt}件）</button>`;
+  if(c.yahoo) btns+=`<button onclick="notifyYahoo()" style="width:100%;padding:11px;margin-top:8px;border:none;background:#7b1fa2;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟣 ヤフーを発送処理（${c.yahoo}件）※手動必須</button>`;
+  if(c.rakuten) btns+=`<button onclick="notifyRakuten()" style="width:100%;padding:11px;margin-top:8px;border:1px solid #bf0000;background:#fff;color:#bf0000;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🟥 楽天を今すぐ発送処理（${c.rakuten}件）※押さなくても自動</button>`;
   if(c.ichiba) btns+=`<button onclick="notifyMark('ichiba')" style="width:100%;padding:11px;margin-top:8px;border:1px solid #e8721b;background:#fff;color:#c85d0e;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🏪 市場は連絡した（${c.ichiba}件・消す）</button>`;
   const mallWord=[c.rakuten?"楽天":null,c.yahoo?"ヤフー":null,c.ichiba?"市場":null].filter(Boolean).join("・");
   $("#notify-body").innerHTML=
     `<div style="font-size:16px;font-weight:800;margin-bottom:4px">📢 ${mallWord}の発送処理がまだです</div>`
-    +`<div style="font-size:12.5px;color:#a06414;background:#fff4e5;border-left:4px solid #e8721b;border-radius:8px;padding:8px 11px;margin:8px 0 12px">出荷手続きは完了しました。<b>発送処理</b>がまだのものが <b>${st.count}件</b> あります。下のボタンで実行すると<b>管理ツールの受注が「発送済」になり、お客様へ発送完了メールが自動送信</b>されます（追跡番号＝西濃送り状番号）。15:30時点で残っていると大樹さんへLINE通知＋タスク登録します。</div>`
+    +`<div style="font-size:12.5px;color:#555;background:#f7f6f2;border-radius:8px;padding:8px 11px;margin:8px 0 4px">出荷手続きは完了しました。発送処理がまだのものが <b>${st.count}件</b> あります。処理すると受注が「発送済」になり、お客様へ発送完了メールが自動送信されます（追跡番号＝西濃送り状番号）。</div>`
+    +(c.rakuten?`<div style="font-size:12.5px;color:#2c6b45;background:#eef4ec;border-left:4px solid #2e7d4f;border-radius:8px;padding:8px 11px;margin:6px 0 4px">🟥 <b>楽天は押さなくてOK</b>：西濃が集荷してシステムに反映され次第、<b>自動で発送処理されます</b>。急ぐ場合だけ下の「今すぐ」ボタンを使ってください（21時までに処理できなければLINEでお知らせします）。</div>`:"")
+    +(c.yahoo?`<div style="font-size:12.5px;color:#5a2d82;background:#f4eefb;border-left:4px solid #7b1fa2;border-radius:8px;padding:8px 11px;margin:6px 0 4px">🟣 <b>ヤフーは手動で処理してください</b>（自動処理は動作確認中のため保留中）。下のボタンで今すぐ処理できます。</div>`:"")
+    +`<div style="margin-bottom:8px"></div>`
     +`<div style="margin-bottom:6px">${rows}</div>`
     +btns
-    +`<button onclick="closeNotify()" style="width:100%;padding:11px;margin-top:10px;border:1px solid var(--line);background:#fff;color:#555;border-radius:10px;font-size:14px;cursor:pointer">後で（閉じる）</button>`;
+    +`<button onclick="closeNotify()" style="width:100%;padding:11px;margin-top:10px;border:1px solid var(--line);background:#fff;color:#555;border-radius:10px;font-size:14px;cursor:pointer">${(c.rakuten&&!c.yahoo&&!c.ichiba)?"閉じる（自動処理に任せる）":"後で（閉じる）"}</button>`;
   $("#notify-modal").style.display="flex";
 }
 function closeNotify(){ $("#notify-modal").style.display="none"; }
