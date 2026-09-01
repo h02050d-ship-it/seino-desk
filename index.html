@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="dns-prefetch" href="https://script.google.com">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>西濃送り状デスク｜林材木店</title>
@@ -471,6 +474,10 @@ let PARTNERS=null;
 const $=s=>document.querySelector(s);
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2600);}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+// 起動高速化(SWR): 前回データをlocalStorageに保持→開いた瞬間に即描画し、裏でGAS最新を取得して差し替え
+function swrGet(k,maxAgeMs){ try{ const c=JSON.parse(localStorage.getItem(k)||"null"); if(c&&c.j&&(Date.now()-(c.at||0))<maxAgeMs) return c.j; }catch(e){} return null; }
+function swrGetSameDay(k){ try{ const c=JSON.parse(localStorage.getItem(k)||"null"); if(c&&c.j&&new Date(c.at).toDateString()===new Date().toDateString()) return c.j; }catch(e){} return null; }
+function swrSet(k,j){ try{ localStorage.setItem(k,JSON.stringify({at:Date.now(),j:j})); }catch(e){} }
 
 // ---- login ----
 // 共通SSO: h02050d-ship-it.github.io の他ツールのログインを引き継ぐ
@@ -657,12 +664,12 @@ async function loadToday(){
   const el=$("#today-list");
   if(TODAY_CACHE){ renderToday(TODAY_CACHE); }            // 手元があれば即描画（ラグなし）
   else{
-    try{ const c=JSON.parse(sessionStorage.getItem("seinodesk_today")||"null"); if(c&&c.j){ TODAY_CACHE=c.j; renderToday(c.j); } }catch(e){}
+    const c=swrGetSameDay("seinodesk_today"); if(c){ TODAY_CACHE=c; renderToday(c); }   // 当日分キャッシュを即描画（別タブ/再起動でも効く）
     if(!TODAY_CACHE) el.innerHTML='<div class="hint" style="padding:10px">読み込み中…</div>';
   }
   try{
     const j=await gasGet("seinotoday");                   // 裏で最新取得→差分だけ反映
-    if(j.ok){ TODAY_CACHE=j; try{sessionStorage.setItem("seinodesk_today",JSON.stringify({at:Date.now(),j}));}catch(e){} renderToday(j); }
+    if(j.ok){ TODAY_CACHE=j; swrSet("seinodesk_today",j); renderToday(j); }
     else if(!TODAY_CACHE){ el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
   }catch(e){ if(!TODAY_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
 }
@@ -816,12 +823,14 @@ let REG_CACHE=null;
 function updateRegBadge(n){ const b=$("#tab-cnt-reg"); if(!b) return; if(n>0){ b.textContent=n; b.style.display="inline-block"; } else b.style.display="none"; }
 async function loadRegistered(){
   const el=$("#reg-list"); if(!el) return;
+  const days=($("#reg-days")||{}).value||"7";
+  if(REG_CACHE){ renderRegistered(REG_CACHE); }                     // 手元があれば即描画
+  else{ const c=swrGet("seinodesk_reg_"+days,3*24*3600*1000); if(c){ REG_CACHE=c; renderRegistered(c); } }  // 前回データを即描画→裏で最新化
   if(!REG_CACHE) el.innerHTML='<div class="hint" style="padding:10px">読み込み中…</div>';
   try{
-    const days=($("#reg-days")||{}).value||"7";
     const j=await gasGet2("seinoregistered","days="+days);
-    if(!j.ok){ el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; return; }
-    REG_CACHE=j; renderRegistered(j);
+    if(!j.ok){ if(!REG_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; return; }
+    REG_CACHE=j; swrSet("seinodesk_reg_"+days,j); renderRegistered(j);
   }catch(e){ if(!REG_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
 }
 // 出荷登録／出荷履歴で共通の行表示（withCb=trueなら未印刷にチェックボックスを出す）
@@ -832,7 +841,7 @@ function seinoRowHtml(x, withCb){
           :x.queued?`<span class="badge" style="background:#e8721b">⏳ 印刷待ち</span>`
           :`<span class="badge" style="background:#8a7350">🖨 未印刷</span>`;
   const cb=!withCb?"":((x.printedAt||x.queued)?'<span style="width:17px;flex:none"></span>'
-          :`<input type="checkbox" class="reg-cb" value="${esc(x.id)}" style="width:17px;height:17px;flex:none;cursor:pointer">`);
+          :`<input type="checkbox" class="reg-cb" value="${esc(x.id)}" data-no="${x.okurijoNo}" style="width:17px;height:17px;flex:none;cursor:pointer">`);
   const d=x.date||""; const dj=d.length===8?(d.slice(4,6)+"/"+d.slice(6,8)):"";
   return `<div class="tlist-item">${cb}<span class="mbadge ${m[1]}">${m[0]}</span>
     <div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""} ${st}
@@ -897,11 +906,27 @@ async function regPreviewPrint(id,no){ // 印刷前に実物の送り状PDFを�
   ov.querySelector("#pv-cancel").onclick=close;
   ov.querySelector("#pv-ok").onclick=async()=>{ close(); await regQueue([id]); };
 }
-async function regPrintSelected(){
-  const ids=[...document.querySelectorAll(".reg-cb")].filter(c=>c.checked).map(c=>c.value);
-  if(!ids.length){ toast("印刷する送り状を選んでください"); return; }
-  if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">🖨 選択した送り状を印刷</div><b>'+ids.length+'件</b>の送り状を会社PCで印刷します（1分以内に出ます）。<br>よろしいですか？')) return;
-  await regQueue(ids);
+async function regPrintSelected(){ // まとめて印刷も必ずプレビューを見てから（本人指示2026-09-01）
+  const sel=[...document.querySelectorAll(".reg-cb")].filter(c=>c.checked).map(c=>({id:c.value,no:c.dataset.no||""}));
+  if(!sel.length){ toast("印刷する送り状を選んでください"); return; }
+  toast("印刷内容を取得中…");
+  const blobs=await Promise.all(sel.map(s=>pdfBlob(s.no).catch(()=>null)));
+  const urls=blobs.map(b=>b?URL.createObjectURL(b):null);
+  const frames=sel.map((s,i)=>'<div style="padding:8px 16px 4px;font-size:12.5px;font-weight:700">'+(i+1)+' / '+sel.length+'　送り状番号 '+s.no+'</div>'
+    +(urls[i]?'<iframe src="'+urls[i]+'#view=Fit&navpanes=0" style="border:none;width:100%;height:62vh;flex:none;background:#525659"></iframe>'
+             :'<div style="margin:4px 16px 8px;padding:12px;background:#fff4e5;border-radius:8px;font-size:12.5px;color:#a06414">プレビューPDFを取得できませんでした（このまま印刷は可能です）</div>')).join("");
+  const ov=document.createElement("div");
+  ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:140;display:flex;align-items:center;justify-content:center;padding:10px";
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;width:min(1300px,97vw);height:95vh;box-shadow:0 10px 34px rgba(0,0,0,.25);overflow:hidden;display:flex;flex-direction:column">'
+    +'<div style="padding:10px 16px;font-weight:700;font-size:14px;border-bottom:1px solid var(--line)">🖨 この内容で印刷されます（'+sel.length+'件・スクロールで全件確認）</div>'
+    +'<div style="flex:1;min-height:0;overflow-y:auto">'+frames+'</div>'
+    +'<div style="display:flex;gap:10px;padding:10px 16px;flex:none;border-top:1px solid var(--line)">'
+    +'<button id="pvs-cancel" style="flex:1;padding:12px;border:1px solid var(--line);background:#fff;border-radius:10px;font-size:15px;cursor:pointer">キャンセル</button>'
+    +'<button id="pvs-ok" style="flex:1.3;padding:12px;border:none;background:var(--ok);color:#fff;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">🖨 この内容で'+sel.length+'件印刷</button></div></div>';
+  document.body.appendChild(ov);
+  const close=()=>{ document.body.removeChild(ov); urls.forEach(u=>{ if(u) URL.revokeObjectURL(u); }); };
+  ov.querySelector("#pvs-cancel").onclick=close;
+  ov.querySelector("#pvs-ok").onclick=async()=>{ close(); await regQueue(sel.map(s=>s.id)); };
 }
 async function regQueue(ids){
   toast("印刷キューに登録中…");
@@ -1439,7 +1464,8 @@ let SERVER_HIST=[];
 function getHist(){ try{return JSON.parse(localStorage.getItem("seinodesk_hist")||"[]");}catch(e){return[];} }
 function addHist(h){ const a=getHist(); a.unshift(h); localStorage.setItem("seinodesk_hist",JSON.stringify(a.slice(0,20))); renderHist(); }
 async function loadServerHist(){
-  try{ const j=await gasGet("seinorecent"); if(j.ok&&Array.isArray(j.list)) SERVER_HIST=j.list; }catch(e){}
+  if(!SERVER_HIST.length){ const c=swrGet("seinodesk_srvhist",7*24*3600*1000); if(c){ SERVER_HIST=c; renderHist(); } }  // 前回データを即描画
+  try{ const j=await gasGet("seinorecent"); if(j.ok&&Array.isArray(j.list)){ SERVER_HIST=j.list; swrSet("seinodesk_srvhist",j.list); } }catch(e){}
   renderHist();
 }
 function fmtD(d){ return (d&&d.length===8)?(d.slice(0,4)+"-"+d.slice(4,6)+"-"+d.slice(6,8)):(d||""); }
