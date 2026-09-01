@@ -674,11 +674,13 @@ async function loadToday(){
   }catch(e){ if(!TODAY_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
 }
 // ---- 確認モーダル（スクロールなし・内容に合わせて縮む） ----
-function uiConfirm(html){
+function uiConfirm(html, okLabel){
   return new Promise(res=>{
     $("#confirm-body").innerHTML=html;
+    const okBtn=$("#confirm-ok"); const defLabel=okBtn.dataset.def||(okBtn.dataset.def=okBtn.textContent);
+    okBtn.textContent=okLabel||defLabel;
     $("#confirm-modal").style.display="flex";
-    const done=v=>{ $("#confirm-modal").style.display="none"; $("#confirm-ok").onclick=null; $("#confirm-cancel").onclick=null; res(v); };
+    const done=v=>{ $("#confirm-modal").style.display="none"; okBtn.textContent=defLabel; $("#confirm-ok").onclick=null; $("#confirm-cancel").onclick=null; res(v); };
     $("#confirm-ok").onclick=()=>done(true);
     $("#confirm-cancel").onclick=()=>done(false);
   });
@@ -704,15 +706,27 @@ async function shimeAll(){
     notifyReminderPopup();   // 楽天/ヤフー/市場の発送通知リマインド
   }catch(e){ toast("通信エラー"); }
 }
+// 取消した送り状がKM2に残っている間は締め(印刷/FAX/集荷)を止める。KM2で消したら「削除しました」で解除。
+async function voidPendingBlock(j){
+  if(!j || j.error!=="voidPending") return false;
+  const nos=(j.pending||[]);
+  const ok=await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px;color:#c0392b">⚠️ 取消した送り状がKM2に残っています</div>'
+    +'<div style="background:#fff4e5;border-radius:9px;padding:10px 12px;margin-bottom:10px"><b>'+nos.join('　')+'</b></div>'
+    +'このまま進めると、実在しない荷物が出荷一覧表・FAX・集荷個口に混ざります。<br>'
+    +'<b>先にKM2画面で削除してください。</b><br><br>'
+    +'削除が済んでいる場合は「OK」を押すと解除します（次回から警告しません）。',"OK（KM2で削除しました）");
+  if(ok){ for(const n of nos){ try{ await gasGet2("seinovoidclear","no="+encodeURIComponent(n)); }catch(e){} } toast("解除しました。もう一度実行してください"); }
+  return true;
+}
 async function shimePrint(){
   if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">🖨 出荷一覧表を印刷</div>当日の出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷します。<br>よろしいですか？')) return;
   toast("印刷キューに登録中…");
-  try{ const j=await gasGet("seinolistprint"); toast(j.ok?"✅ 十数秒で会社PCから印刷されます":"失敗"); loadToday(); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
+  try{ const j=await gasGet("seinolistprint"); if(await voidPendingBlock(j)) return; toast(j.ok?"✅ 十数秒で会社PCから印刷されます":("失敗（"+(j.message||j.error||"")+"）")); loadToday(); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
 }
 async function shimeFax(){
   if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">📠 出荷一覧表をFAX</div>当日の出荷一覧表（<b>荷主控え</b>）を西濃袋井支店へFAX送信します（実FAX）。<br>よろしいですか？')) return;
   toast("FAX依頼を登録中…");
-  try{ const j=await gasGet("seinoefax"); toast(j.queued?"✅ 1分以内に荷主控えをFAX送信します":("失敗（"+(j.error||"")+"）")); loadToday(); }catch(e){ toast("通信エラー"); }
+  try{ const j=await gasGet("seinoefax"); if(await voidPendingBlock(j)) return; toast(j.queued?"✅ 1分以内に荷主控えをFAX送信します":("失敗（"+(j.message||j.error||"")+"）")); loadToday(); }catch(e){ toast("通信エラー"); }
 }
 async function shimePickup(){
   const t=TODAY_CACHE||{kosu:0,weightKg:0};
@@ -722,7 +736,7 @@ async function shimePickup(){
     +'<div style="background:#f0f7f3;border-radius:9px;padding:10px 12px;margin-bottom:10px">合計 <b>'+t.kosu+'束</b>（'+t.kosu+'個口）／総重量 <b>'+t.weightKg+'kg</b><br><span style="color:var(--muted);font-size:12px">備考: '+esc(bk||pickupAutoBiko(t))+(bk?'（編集済み）':'')+'</span></div>'
     +'本日16時の集荷で依頼します。よろしいですか？<br><span style="color:var(--muted);font-size:12px">※16時を過ぎている場合は当日17時、当日枠が無ければ翌営業日16時になります</span>')) return;
   toast("集荷依頼を登録中…");
-  try{ const j=await gasGet2("seinopickupqueue","biko="+encodeURIComponent(bk)); toast(j.queued?("✅ 依頼キュー済 "+j.kosu+"個口・"+j.weightKg+"kg（1分以内に送信）"):("実行なし（"+(j.error||"対象なし")+"）")); loadToday(); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
+  try{ const j=await gasGet2("seinopickupqueue","biko="+encodeURIComponent(bk)); if(await voidPendingBlock(j)) return; toast(j.queued?("✅ 依頼キュー済 "+j.kosu+"個口・"+j.weightKg+"kg（1分以内に送信）"):("実行なし（"+(j.message||j.error||"対象なし")+"）")); loadToday(); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
 }
 // ---- 発送通知リマインド（楽天/ヤフー/市場）ポップアップ ----
 function gasGet2(action, extra){ let u=API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass); if(extra) u+="&"+extra; return fetch(u).then(r=>r.json()); }
@@ -1389,9 +1403,19 @@ async function createOkurijo(doPrintArg){
   const sai=parseInt($("#f-sai").value,10); if(!isNaN(sai)&&sai>0) body.juryoSai=sai;
   if(dShina>0 && !isNaN(dTax)){ body.daibikiShina=dShina; body.daibikiTax=dTax; }
   try{
-    const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});
-    const j=await r.json();
-    if(!j.ok){ toast("失敗: "+(j.error||"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; $("#btn-go2").disabled=false; return; }
+    let r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});
+    let j=await r.json();
+    // 二重登録ガード: 同じ内容が既にある時はここで止まる。本当に別便なら確認のうえ force で通す
+    if(!j.ok && j.error==="duplicate"){
+      const go=await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px;color:#c0392b">⚠️ 二重登録の可能性</div>'
+        +esc(j.message||"")+'<br><br>西濃の送り状は<b>あとから削除できません</b>（出荷一覧表を印刷すると確定します）。<br>本当に別の荷物として登録しますか？');
+      if(!go){ toast("登録を中止しました"); $("#btn-go").disabled=false; $("#btn-go2").disabled=false; return; }
+      body.force=1;
+      r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});
+      j=await r.json();
+    }
+    if(!j.ok){ toast("失敗: "+(j.message||j.error||"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; $("#btn-go2").disabled=false; return; }
+    if(sName && !j.sender) toast("⚠️ 荷送人が反映されていません。作り直してください");   // 荷送人指定なのに空＝旧版に当たった等
     $("#r-no").textContent=j.okurijoNo;
     $("#r-note").innerHTML=(j.tome?("🏢 "+j.tome+"支店止め（〒"+j.zip+"）　"):"")+(j.print?'<span class="badge">🖨 印刷キュー済（十数秒で出ます）</span>':'<span class="badge" style="background:#8a7350">登録のみ（出荷登録タブから印刷できます）</span>');
     $("#r-track").href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1="+j.okurijoNo;
