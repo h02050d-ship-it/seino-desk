@@ -892,7 +892,8 @@ function seinoRowHtml(x, withCb){
     : `<span style="color:var(--muted)">荷送人 林材木店</span>`;
   const chaku=String(x.motochaku)==="3"?'<span style="color:#c0392b;font-weight:700">着払</span>':"元払";
   return `<div class="tlist-item">${cb}<span class="mbadge ${m[1]}">${m[0]}</span>
-    <div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""} ${st}
+    <div style="flex:1;min-width:0"><b>${esc(x.customer)} 様</b>${x.corp?' <span class="mbadge other" style="background:#2e7d32">法人</span>':""}${x.tome?` <span class="mbadge other" style="background:#e8721b">${esc(x.tome)}止め</span>`:""} ${st}
+      ${x.corp&&x.orderCustomer?`<div class="meta">宛名＝法人名で発行／注文者 ${esc(x.orderCustomer)} 様</div>`:""}
       <div class="meta">${dj} ${esc(x.item||"")}</div>
       ${addrLine}
       <div class="meta">${sender}　${chaku}</div></div>
