@@ -350,7 +350,7 @@ button.primary:disabled{opacity:.5;cursor:default}
       <select id="reg-days" onchange="loadRegistered()" style="border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:12px">
         <option value="1">今日</option><option value="3">3日</option><option value="7" selected>7日</option><option value="30">30日</option>
       </select>
-      <button class="hbtn" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer" onclick="loadRegistered()">↻ 更新</button></div>
+      <button class="hbtn" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer" onclick="loadRegistered(1)">↻ 更新</button></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 8px">
       <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="reg-all" onchange="regToggleAll()"> 未印刷をすべて選択</label>
       <span style="flex:1"></span>
@@ -835,17 +835,43 @@ async function km2Sync(){
 // ---- 出荷登録タブ：登録済みの管理・あとから印刷 ----
 let REG_CACHE=null;
 function updateRegBadge(n){ const b=$("#tab-cnt-reg"); if(!b) return; if(n>0){ b.textContent=n; b.style.display="inline-block"; } else b.style.display="none"; }
-async function loadRegistered(){
+// キャッシュが古いまま黙って残るのを防ぐ（2026-09-04）: 取得に失敗したら必ず赤帯で知らせる。
+// 実害=取消済みの送り状2件が「更新」を押しても消えず、消せないと誤解した（サーバーには既に無かった）。
+let REG_AT=0;
+function regStaleBanner(msg){
+  const el=$("#reg-list"); if(!el) return;
+  const old=el.querySelector(".stale-warn"); if(old) old.remove();
+  const d=document.createElement("div");
+  d.className="stale-warn";
+  d.style.cssText="margin:0 0 8px;padding:8px 10px;border:1px solid var(--warn);background:#fff6f4;color:var(--warn);border-radius:8px;font-size:12.5px;font-weight:700;line-height:1.5";
+  d.textContent=msg;
+  el.prepend(d);
+}
+async function loadRegistered(force){
   const el=$("#reg-list"); if(!el) return;
   const days=($("#reg-days")||{}).value||"7";
-  if(REG_CACHE){ renderRegistered(REG_CACHE); }                     // 手元があれば即描画
+  if(force){ REG_CACHE=null; REG_AT=0; try{ localStorage.removeItem("seinodesk_reg_"+days); }catch(e){}
+             el.innerHTML='<div class="hint" style="padding:10px">最新を取得中…</div>'; }   // ↻更新は必ずサーバーを正にする
+  else if(REG_CACHE){ renderRegistered(REG_CACHE); }                // 手元があれば即描画
   else{ const c=swrGet("seinodesk_reg_"+days,3*24*3600*1000); if(c){ REG_CACHE=c; renderRegistered(c); } }  // 前回データを即描画→裏で最新化
-  if(!REG_CACHE) el.innerHTML='<div class="hint" style="padding:10px">読み込み中…</div>';
+  if(!REG_CACHE && !force) el.innerHTML='<div class="hint" style="padding:10px">読み込み中…</div>';
   try{
     const j=await gasGet2("seinoregistered","days="+days);
-    if(!j.ok){ if(!REG_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; return; }
-    REG_CACHE=j; swrSet("seinodesk_reg_"+days,j); renderRegistered(j);
-  }catch(e){ if(!REG_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
+    if(!j.ok){
+      if(String(j.error||"")==="unauthorized"){    // パス変更等でログインが切れている＝全リストが古いキャッシュのまま固まる
+        regStaleBanner("⚠️ ログインが切れています。表示は古いキャッシュです。再ログインします…");
+        try{ localStorage.removeItem("seinodesk_cred"); }catch(e){}
+        setTimeout(()=>location.reload(), 1500); return;
+      }
+      if(!REG_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>';
+      else regStaleBanner("⚠️ 最新を取得できませんでした。表示は前回取得分"+(REG_AT?("（"+new Date(REG_AT).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})+"時点）"):"")+"のままです。もう一度↻更新を押してください。");
+      return;
+    }
+    REG_CACHE=j; REG_AT=Date.now(); swrSet("seinodesk_reg_"+days,j); renderRegistered(j);
+  }catch(e){
+    if(!REG_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>';
+    else regStaleBanner("⚠️ 通信エラーで最新を取得できませんでした。表示は前回取得分のままです。");
+  }
 }
 // 出荷登録／出荷履歴で共通の行表示（withCb=trueなら未印刷にチェックボックスを出す）
 function seinoRowHtml(x, withCb){
@@ -883,7 +909,7 @@ function renderRegistered(j){
   const el=$("#reg-list");
   const list=(j.list||[]).filter(x=>!x.printedAt);
   updateRegBadge(list.length);
-  $("#reg-sub").textContent="（未印刷 "+list.length+"件）";
+  $("#reg-sub").textContent="（未印刷 "+list.length+"件"+(REG_AT?("・"+new Date(REG_AT).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})+"取得"):"・前回のキャッシュ")+"）";
   if(!list.length){ el.innerHTML='<div class="hint" style="padding:10px">未印刷の送り状はありません。<br>印刷済みのものは「🗂 出荷履歴」タブで確認・再印刷できます。</div>'; return; }
   el.innerHTML=list.map(x=>seinoRowHtml(x,true)).join("");
   const all=$("#reg-all"); if(all) all.checked=false;
