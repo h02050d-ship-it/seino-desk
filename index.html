@@ -1365,6 +1365,19 @@ function onKgPicked(){              // 重量を人が選んだ直後に推定�
   if(["f-kiji1","f-kiji2","f-kiji3"].some(id=>String($("#"+id).value||"").trim())) return;
   setTimeout(()=>suggestKiji(false),120);
 }
+
+// ===== 配送特記メモ（届け先ごとに毎回必要な手配）=====
+// 追加は1行。match=届け先名・住所・電話のどれかに当たる正規表現／note=発行前に出す確認文。
+// 同じ表を 納品書ツール(hayazai_nouhin/index.html) と 送り状デスク(seino-desk/index.html) に置いている。
+const DELIVERY_NOTES = [
+  { match: /河内|里深|新野東\s*685|下浦|0908065166/, note: "配達前に下浦大工様（090-8065-1666）へ電話が入るよう手配する（届け先TELを下浦様の番号にする）。梱包に「配達前 電話連絡のお願い」ラベルを貼付。" },
+];
+function deliveryNoteFor(){
+  const hay = Array.prototype.slice.call(arguments).filter(Boolean).join(" ").replace(/[-‐-―ー\s]/g, "");
+  for (const d of DELIVERY_NOTES) { if (d.match.test(hay)) return d.note; }
+  return "";
+}
+
 async function createOkurijo(doPrintArg){
   const wantPrint=(doPrintArg!==false);
   if(LINKED) return issueLinked(wantPrint);
@@ -1396,7 +1409,8 @@ async function createOkurijo(doPrintArg){
   const hoken=parseInt($("#f-hoken").value,10)||0;
   const dShina=parseInt($("#f-daibiki-shina").value,10)||0;
   const dTax=parseInt($("#f-daibiki-tax").value,10);
-  let msg="【西濃 送り状発行】🟢本番\n\n届け先: "+name+"\n"
+  const dnote=deliveryNoteFor(name,addr,tel);
+  let msg="【西濃 送り状発行】🟢本番\n\n"+(dnote?("⚠️ この届け先の特記事項\n"+dnote+"\n\n"):"")+"届け先: "+name+"\n"
     +(tome?("止め: "+branch+"支店（住所は支店に自動設定）"):("〒"+zip+" "+addr))
     +"\nTEL: "+tel+"\n個口: "+kosu+"個口 / "+kg+"kg / "+(motochaku==="3"?"着払":"元払");
   if(sName) msg+="\n荷送人: "+sName+"（請求は林材木店）";
