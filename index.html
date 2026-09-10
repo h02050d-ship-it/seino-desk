@@ -1287,7 +1287,7 @@ async function loadDraftTab(force){
   try{
     const [a,b,c]=await Promise.all([gasGet("seinocandidates").catch(()=>({})), gasGet("seinokakoupending").catch(()=>({})), gasGet("seinodraftlist").catch(()=>({}))]);
     if(!a.ok && !b.ok && !c.ok){ if(!DRAFT_CACHE && el) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; return; }
-    const cands=(a.list||[]);
+    const cands=(a.list||[]).filter(x=>x.mall==="rakuten"||x.mall==="yahoo");   // 市場(FAX/メール取込)は個口1/1kgのダミー＝予定表の行の方で出す
     const kak=(b.rows||[]);
     // 注文由来(od_)の予定表行は注文候補に寄せて1枚にする（束数・出荷日・着日を候補カードに併記）
     const byId={}; cands.forEach(x=>{ byId[String(x.id)]=x; });
@@ -1316,10 +1316,12 @@ function renderDraftTab(d){
   h+='<div class="dsec">🛒 楽天・ヤフーの注文（西濃・未発行）<span class="cnt2">'+(d.cands||[]).length+'</span></div>';
   if(!(d.cands||[]).length) h+='<div class="hint" style="padding:4px 8px 8px">西濃・未発行の注文はありません</div>';
   (d.cands||[]).forEach((c,i)=>{ const m=MB[c.mall]||["その他","other"]; const k=c.kakou;
-    h+='<div class="dcard"><span class="mbadge '+m[1]+'">'+m[0]+'</span><div class="dbody"><b class="nm">'+esc(c.customer)+' 様</b>'+(c.corpName?' <span class="mbadge other" style="background:#2e7d32">法人 '+esc(c.corpName)+'</span>':'')+(c.custType==="個人"&&c.branch?' <span class="mbadge other" style="background:#e8721b">'+esc(c.branch)+'止め</span>':'')
+    const corpNg=(String(c.custType||"").indexOf("法人")>=0 && !c.corpName);
+    h+='<div class="dcard"><span class="mbadge '+m[1]+'">'+m[0]+'</span><div class="dbody"><b class="nm">'+esc(c.customer)+' 様</b>'+(c.corpName?' <span class="mbadge other" style="background:#2e7d32">法人 '+esc(c.corpName)+'</span>':'')+(corpNg?' <span class="mbadge other" style="background:var(--warn)">法人名 未確認</span>':'')+(c.custType==="個人"&&c.branch?' <span class="mbadge other" style="background:#e8721b">'+esc(c.branch)+'止め</span>':'')
       +'<div class="meta">'+esc((c.zip?("〒"+c.zip+" "):"")+(c.addr||"")+(c.tel?("　TEL "+c.tel):""))+'</div>'
       +'<div class="meta">'+esc((c.items||[]).map(x=>x.name.replace(/【.*?】|\s+/g," ").trim().slice(0,28)+"×"+x.qty).join("／"))+'</div>'
       +'<div class="meta">注文の計算: '+c.kosu+'個口・'+c.weightKg+'kg（'+esc([c.kiji1,c.kiji2].filter(Boolean).join(" "))+'）'+(c.deliveryDate?('　お客様の着日希望 <b>'+fd(c.deliveryDate)+'</b>'):'')+'</div>'
+      +(corpNg?'<div class="meta" style="color:var(--warn);font-weight:700">⚠️ 法人のお客様ですが法人名・法人住所が未登録です。order-deskのドロワーで登録してから発行してください（宛名は法人名で出ます）</div>':'')
       +(k?('<div class="meta" style="color:#e65100;font-weight:700">📋 加工予定表: '+k.planned+'口'+(k.length?('・'+Math.round(Number(k.length)/100)/10+'m'):'')+(k.grade?('・'+esc(k.grade)):'')+(k.due?('・出荷 '+fd(k.due)):'')+(k.chaku?('・着日 '+fd(k.chaku)+' '+esc(k.chakuKbn||"")):'')+(k.actual&&k.actual!=='-'?('　<span style="color:#c0392b">'+esc(k.actual)+'中</span>'):'')+'</div>'):'<div class="meta" style="color:#999">📋 加工予定表に西濃の行なし（束数は注文の計算値）</div>')
       +'</div><div class="dbtns"><button style="background:var(--accent);color:#fff" onclick="candOpen('+i+')">✏️ 確認して発行へ</button></div></div>'; });
   h+='<div class="dsec">📋 加工予定表の西濃出荷（市場・手入力の行）<span class="cnt2">'+(d.kakou||[]).length+'</span></div>';
