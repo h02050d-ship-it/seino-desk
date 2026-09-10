@@ -696,10 +696,11 @@ async function loadKakouHint(){
     const j=await gasGet2("seinokakouday", d?("date="+d):"");
     if(!j.ok||!j.authOk){ el.textContent=""; return; }
     if(!(j.rows||[]).length){ el.innerHTML='<span style="color:var(--muted)">📋 加工予定表: この日の西濃出荷予定なし</span>'; return; }
-    el.innerHTML='📋 加工予定表の西濃出荷: '+j.rows.map(r=>'<a href="#" onclick="applyKakou('+r.planned+');return false" style="font-weight:700">'+esc(r.customer)+' '+r.planned+'口</a>（'+esc(r.grade||"")+' '+(r.length?Math.round(Number(r.length)/100)/10+'m':'')+'）').join('　')+'<span style="color:var(--muted)">　←クリックで個口を転記</span>';
+    el.innerHTML='📋 加工予定表の西濃出荷: '+j.rows.map(r=>'<a href="#" onclick="applyKakou('+r.planned+',\''+esc(r.uid||"")+'\');return false" style="font-weight:700">'+esc(r.customer)+' '+r.planned+'口</a>（'+esc(r.grade||"")+' '+(r.length?Math.round(Number(r.length)/100)/10+'m':'')+'）').join('　')+'<span style="color:var(--muted)">　←クリックで個口を転記</span>';
   }catch(e){ el.textContent=""; }
 }
-function applyKakou(n){ $("#f-kosu").value=String(n); if($("#f-kosu").value!==String(n)){ toast("個口 "+n+" はプルダウンにありません"); return; } autoWeight(); toast("個口 "+n+"・重量 "+$("#f-kg").value+"kg を転記しました"); }
+let KAKOU_UID="";   // 転記元の加工予定表キー（登録時に送り状へ保存→ネット系の自動納品書が発送完了の根拠にする）
+function applyKakou(n,uid){ $("#f-kosu").value=String(n); if($("#f-kosu").value!==String(n)){ toast("個口 "+n+" はプルダウンにありません"); return; } KAKOU_UID=uid||""; autoWeight(); toast("個口 "+n+"・重量 "+$("#f-kg").value+"kg を転記しました（加工予定表と紐付け）"); }
 function gasGet(action){ return fetch(API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass)).then(r=>r.json()); }
 // ---- 締め前の内容確認（出荷一覧表の印刷/FAXで西濃KM2側が「出荷確定」になり修正・削除ができなくなる）----
 function shimeCheckHtml(){
@@ -1456,6 +1457,7 @@ async function createOkurijo(doPrintArg){
     customer:name,zip:zip,addr:addr,tel:tel,kosu:kosu,juryoKg:kg,motochaku:motochaku,
     tomeBranch:branch,kiji1:$("#f-kiji1").value.trim(),kiji2:$("#f-kiji2").value.trim(),
     date:date,print:doPrint,shohinKbn:shohin};
+  if(KAKOU_UID && String(kosu)===String($("#f-kosu").value)) body.kakouUid=KAKOU_UID;
   if(sName){ body.niokurininName=sName; body.niokurininAddr1=$("#s-addr1").value.trim(); body.niokurininAddr2=$("#s-addr2").value.trim(); body.niokurininTel=$("#s-tel").value.trim(); }
   const add=(k,v)=>{ if(v!==""&&v!=null) body[k]=v; };
   add("kiji3",$("#f-kiji3").value.trim());
