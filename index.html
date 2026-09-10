@@ -688,13 +688,24 @@ function uiConfirm(html, okLabel){
 }
 // ---- 出荷の締め（印刷/FAX/集荷） ----
 function gasGet(action){ return fetch(API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass)).then(r=>r.json()); }
+// ---- 締め前の内容確認（出荷一覧表の印刷/FAXで西濃KM2側が「出荷確定」になり修正・削除ができなくなる）----
+function shimeCheckHtml(){
+  const t=TODAY_CACHE||{list:[]};
+  const rows=(t.list||[]).map(r=>'<tr><td style="padding:3px 6px">'+esc(r.customer||"")+'</td><td style="padding:3px 6px">'+esc(r.item||"")+'</td><td style="padding:3px 6px;text-align:right"><b>'+(r.kosu||0)+'</b>口</td><td style="padding:3px 6px;text-align:right">'+(r.weightKg||0)+'kg</td><td style="padding:3px 6px">'+(r.tome?'支店止め':'')+'</td><td style="padding:3px 6px;font-family:monospace">'+esc(r.okurijoNo||"")+'</td></tr>').join('');
+  return '<div style="background:#fff4e5;border:1px solid #f0b26b;border-radius:9px;padding:9px 12px;margin-bottom:10px;font-size:13px;color:#8a4b00"><b>⚠️ 出荷一覧表を印刷／FAXすると西濃側で「出荷確定」になり、送り状の修正も削除もできなくなります。</b><br>個口・届け先・電話を今ここで確認してください。間違いがあれば先に送り状を作り直してから締めてください。</div>'
+    +'<div style="overflow-x:auto;margin-bottom:10px"><table style="border-collapse:collapse;font-size:13px;width:100%"><tr style="color:var(--muted);font-size:11px"><td style="padding:2px 6px">届け先</td><td style="padding:2px 6px">品</td><td style="padding:2px 6px;text-align:right">個口</td><td style="padding:2px 6px;text-align:right">重量</td><td></td><td style="padding:2px 6px">送り状</td></tr>'+(rows||'<tr><td colspan="6" style="padding:6px;color:var(--muted)">本日分なし</td></tr>')+'</table></div>'
+    +'<label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer;margin-bottom:8px"><input type="checkbox" id="shime-ack" style="width:18px;height:18px"> 上の内容（個口・届け先）を確認しました</label>';
+}
+function shimeAcked(){ const c=document.getElementById("shime-ack"); if(c&&c.checked) return true; toast("「内容を確認しました」にチェックを入れてください"); return false; }
 async function shimeAll(){
   const t=TODAY_CACHE||{count:0,kosu:0,weightKg:0};
   const ok=await uiConfirm(
     '<div style="font-size:15px;font-weight:700;margin-bottom:10px">🏁 出荷の締めを実行します</div>'
     +'<div style="background:#f0f7f3;border-radius:9px;padding:10px 12px;margin-bottom:12px">📦 本日の出荷 <b>'+t.count+'件</b>／合計 <b>'+t.kosu+'束</b>（'+t.kosu+'個口）／総重量 <b>'+t.weightKg+'kg</b><br><span style="color:var(--muted);font-size:12px">※荷物はまだ準備中（16時の集荷までに用意）</span></div>'
+    +shimeCheckHtml()
     +'<div>・出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷<br>・出荷一覧表（荷主控え）を西濃袋井支店へFAX送信（実FAX）<br>・西濃へWeb集荷依頼（16時集荷）</div>');
   if(!ok) return;
+  if(!shimeAcked()) return;
   toast("実行中…");
   try{
     const p1=await gasGet("seinolistprint");
@@ -720,12 +731,14 @@ async function voidPendingBlock(j){
   return true;
 }
 async function shimePrint(){
-  if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">🖨 出荷一覧表を印刷</div>当日の出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷します。<br>よろしいですか？')) return;
+  if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">🖨 出荷一覧表を印刷</div>'+shimeCheckHtml()+'当日の出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷します。<br>よろしいですか？')) return;
+  if(!shimeAcked()) return;
   toast("印刷キューに登録中…");
-  try{ const j=await gasGet("seinolistprint"); if(await voidPendingBlock(j)) return; toast(j.ok?"✅ 十数秒で会社PCから印刷されます":("失敗（"+(j.message||j.error||"")+"）")); loadToday(); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
+  try{ const j=await gasGet("seinolistprint"); if(await voidPendingBlock(j)) return; toast(j.ok?"✅ 十数秒で会社PCから印刷されます（出なければもう一度このボタン。自動再印刷はしません）":("失敗（"+(j.message||j.error||"")+"）")); loadToday(); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
 }
 async function shimeFax(){
-  if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">📠 出荷一覧表をFAX</div>当日の出荷一覧表（<b>荷主控え</b>）を西濃袋井支店へFAX送信します（実FAX）。<br>よろしいですか？')) return;
+  if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">📠 出荷一覧表をFAX</div>'+shimeCheckHtml()+'当日の出荷一覧表（<b>荷主控え</b>）を西濃袋井支店へFAX送信します（実FAX）。<br>よろしいですか？')) return;
+  if(!shimeAcked()) return;
   toast("FAX依頼を登録中…");
   try{ const j=await gasGet("seinoefax"); if(await voidPendingBlock(j)) return; toast(j.queued?"✅ 1分以内に荷主控えをFAX送信します":("失敗（"+(j.message||j.error||"")+"）")); loadToday(); }catch(e){ toast("通信エラー"); }
 }
