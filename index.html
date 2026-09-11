@@ -1130,19 +1130,23 @@ async function loadCandidates(){
       el.innerHTML=j.list.map(c=>{
         const m=MB[c.mall]||["その他","other"];
         return `<div class="hist-item" style="cursor:pointer" onclick='pickCand(${JSON.stringify(JSON.stringify(c))})'>
-        <span class="mbadge ${m[1]}">${m[0]}</span><b>${c.customer} 様</b>
+        <span class="mbadge ${m[1]}">${m[0]}</span><b>${candDispName(c)}</b>
         <span class="meta">${c.kosu}個口・${c.weightKg}kg${c.custType==="個人"&&c.branch?("・"+c.branch+"止め"):""}</span>
         <span class="sp"></span><span style="color:var(--accent);font-size:12px">選択 ▸</span></div>`;}).join("");
     }
     el.style.display="block";
   }catch(e){ toast("通信エラー"); }
 }
+// 法人注文は宛名＝法人名（GAS seinoIssue_ と同じ略記）。個人名のまま送り状を出さない(2026-09-11)
+function corpAbbrev(x){ return String(x||"").replace(/株式会社/g,"(株)").replace(/有限会社/g,"(有)").replace(/合同会社/g,"(同)").replace(/合資会社/g,"(資)").trim(); }
+function candDispName(c){ const corp=(String(c.custType||"").indexOf("法人")>=0)?corpAbbrev(c.corpName):""; return corp?(corp+"（注文者 "+(c.customer||"")+" 様）"):((c.customer||"")+" 様"); }
 function pickCand(s){
   const c=JSON.parse(s);
-  LINKED={id:c.id, customer:c.customer};
-  $("#f-name").value=c.customer||"";
-  $("#f-zip").value=(c.zip||"").replace(/[^0-9]/g,"");
-  $("#f-addr").value=c.addr||"";
+  const isCorp=(String(c.custType||"").indexOf("法人")>=0 && c.corpName);
+  LINKED={id:c.id, customer:(isCorp?corpAbbrev(c.corpName):c.customer), orderCustomer:c.customer};
+  $("#f-name").value=(isCorp?corpAbbrev(c.corpName):(c.customer||"")).slice(0,30);
+  $("#f-zip").value=((isCorp&&c.corpZip)?c.corpZip:(c.zip||"")).replace(/[^0-9]/g,"");
+  $("#f-addr").value=(isCorp&&c.corpAddr)?c.corpAddr:(c.addr||"");
   $("#f-tel").value=c.tel||"";
   $("#f-kosu").value=String(Math.min(30,parseInt(c.kosu,10)||1));
   $("#f-kg").value=String(snapKg(c.weightKg||((parseInt(c.kosu,10)||1)*20)));
@@ -1151,9 +1155,9 @@ function pickCand(s){
   const tome=(c.custType==="個人"&&c.branch);
   $("#f-tome").checked=!!tome; if(tome)$("#f-branch").value=c.branch; tomeToggle();
   $("#cand-list").style.display="none";
-  $("#linked-name").textContent=c.customer+" 様";
+  $("#linked-name").textContent=candDispName(c);
   $("#linked-banner").style.display="block";
-  toast("転記しました。内容を確認して発行してください");
+  toast(isCorp?"転記しました（法人注文＝宛名は法人名 "+corpAbbrev(c.corpName)+"）":"転記しました。内容を確認して発行してください");
 }
 function unlink(){ LINKED=null; $("#linked-banner").style.display="none"; toast("連携を解除しました（手入力の内容で発行されます）"); }
 
