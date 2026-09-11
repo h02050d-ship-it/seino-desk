@@ -959,8 +959,10 @@ function seinoRowHtml(x, withCb){
   const m=(x.src==="desk")?["手入力","other"]:(x.src==="km2")?["KM2","other"]:(MB[x.mall]||["その他","other"]);
   const st=x.printedAt?`<span class="badge">✅ 印刷済 ${esc(String(x.printedAt).slice(5,16))}</span>`
           :x.queued?`<span class="badge" style="background:#e8721b">⏳ 印刷待ち</span>`
+          :x.shipped?`<span class="badge" style="background:#2e7d32">📦 発送完了（デスク印刷なし）</span>`
+          :x.past?`<span class="badge" style="background:#607d8b">📦 出荷日経過</span>`
           :`<span class="badge" style="background:#8a7350">🖨 未印刷</span>`;
-  const cb=!withCb?"":((x.printedAt||x.queued)?'<span style="width:17px;flex:none"></span>'
+  const cb=!withCb?"":((x.printedAt||x.queued||x.shipped||x.past)?'<span style="width:17px;flex:none"></span>'
           :`<input type="checkbox" class="reg-cb" value="${esc(x.id)}" data-no="${x.okurijoNo}" style="width:17px;height:17px;flex:none;cursor:pointer">`);
   const d=x.date||""; const dj=d.length===8?(d.slice(4,6)+"/"+d.slice(6,8)):"";
   const zip=x.zip?("〒"+String(x.zip).replace(/^(\d{3})(\d{4})$/,"$1-$2")+" "):"";
@@ -988,7 +990,8 @@ function seinoRowHtml(x, withCb){
 // 出荷登録タブ＝これから印刷するものだけ（印刷済みは出荷履歴タブへ）
 function renderRegistered(j){
   const el=$("#reg-list");
-  const list=(j.list||[]).filter(x=>!x.printedAt);
+  // 発送完了済み(注文が完了)・出荷日が過ぎたものは「もう終わった送り状」＝出荷履歴タブだけに出す(2026-09-11)
+  const list=(j.list||[]).filter(x=>!x.printedAt && !x.shipped && !x.past);
   updateRegBadge(list.length);
   $("#reg-sub").textContent="（未印刷 "+list.length+"件"+(REG_AT?("・"+new Date(REG_AT).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})+"取得"):"・前回のキャッシュ")+"）";
   if(!list.length){ el.innerHTML='<div class="hint" style="padding:10px">未印刷の送り状はありません。<br>印刷済みのものは「🗂 出荷履歴」タブで確認・再印刷できます。</div>'; return; }
