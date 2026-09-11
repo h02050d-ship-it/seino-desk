@@ -1143,7 +1143,8 @@ function candDispName(c){ const corp=(String(c.custType||"").indexOf("法人")>=
 function pickCand(s){
   const c=JSON.parse(s);
   const isCorp=(String(c.custType||"").indexOf("法人")>=0 && c.corpName);
-  LINKED={id:c.id, customer:(isCorp?corpAbbrev(c.corpName):c.customer), orderCustomer:c.customer};
+  LINKED={id:c.id, customer:(isCorp?corpAbbrev(c.corpName):c.customer), orderCustomer:c.customer,
+          orig:{tel:String(c.tel||"").replace(/[^0-9]/g,""), zip:String((isCorp&&c.corpZip)?c.corpZip:(c.zip||"")).replace(/[^0-9]/g,""), addr:String((isCorp&&c.corpAddr)?c.corpAddr:(c.addr||""))}};
   $("#f-name").value=(isCorp?corpAbbrev(c.corpName):(c.customer||"")).slice(0,30);
   $("#f-zip").value=((isCorp&&c.corpZip)?c.corpZip:(c.zip||"")).replace(/[^0-9]/g,"");
   $("#f-addr").value=(isCorp&&c.corpAddr)?c.corpAddr:(c.addr||"");
@@ -1812,6 +1813,11 @@ async function issueLinked(wantPrint){ // order-desk連携発行: seinoissue(番
   try{
     let _u=API_URL+"?action=seinoissue&id="+encodeURIComponent(c.id)+(wantPrint===false?"&print=0":"")+"&date="+encodeURIComponent($("#f-date").value.replace(/-/g,""));
     if(_yuso==="02"&&_hd) _u+="&due="+encodeURIComponent(_hd)+"&kbn="+encodeURIComponent(_kbn);   // 着日指定（GAS seinoIssue_ の dueOv/kbnOv）
+    // 画面で直した電話・〒・住所は連携発行にも反映する（2026-09-11: 携帯へ変更したのに固定電話のまま発行された事故の修正）。GAS seinoIssue_ の telOv/zipOv/addrOv
+    const _o=(c.orig||{}); const _tel=String($("#f-tel").value||"").replace(/[^0-9]/g,""), _zip=String($("#f-zip").value||"").replace(/[^0-9]/g,""), _addr=String($("#f-addr").value||"").trim();
+    if(_tel && _tel!==_o.tel) _u+="&tel="+encodeURIComponent(_tel);
+    if(_zip && _zip!==_o.zip) _u+="&zip="+encodeURIComponent(_zip);
+    if(_addr && _addr!==_o.addr) _u+="&addr="+encodeURIComponent(_addr);
     const r=await fetch(_u+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass));
     const j=await r.json();
     if(!j.ok){ toast("失敗: "+(j.error||"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; $("#btn-go2").disabled=false; return; }
