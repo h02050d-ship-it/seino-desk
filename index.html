@@ -81,6 +81,21 @@ button.primary:disabled{opacity:.5;cursor:default}
 .dcard .dbtns button{border:none;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
 .dsec{font-size:13px;font-weight:800;margin:14px 0 6px;color:#333;display:flex;align-items:center;gap:8px}
 .dsec:first-child{margin-top:0}
+.dgrp{border:2px solid var(--line);border-radius:14px;padding:10px 12px 6px;margin-bottom:14px;background:#fafafa}
+.dgrp.today{border-color:#2e7d32;background:#f1f8f1}
+.dgrp.other{border-color:#bbb}
+.dgrp-h{font-size:15px;font-weight:900;display:flex;align-items:center;gap:10px;margin:0 0 6px}
+.dgrp.today .dgrp-h{color:#1b5e20}
+.dgrp.other .dgrp-h{color:#555}
+.dgrp-h .cnt3{background:#333;color:#fff;border-radius:10px;padding:1px 9px;font-size:12px;font-weight:700}
+.dgrp.today .dgrp-h .cnt3{background:#2e7d32}
+.dgrp .dsec{margin-top:10px;font-size:12.5px}
+.duetag{display:inline-block;border-radius:8px;padding:1px 8px;font-size:11.5px;font-weight:700;vertical-align:middle}
+.duetag.today{background:#2e7d32;color:#fff}
+.duetag.past{background:#c62828;color:#fff}
+.duetag.later{background:#e0e0e0;color:#444}
+.duetag.none{background:#fff3e0;color:#e65100;border:1px solid #ffcc80}
+.dcard .mbadge{white-space:normal;text-align:center;line-height:1.2}
 .dsec .cnt2{background:#e8721b;color:#fff;border-radius:9px;padding:0 7px;font-size:11px}
 .km2-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
 @media(max-width:700px){.km2-cols{grid-template-columns:1fr}}
@@ -1302,36 +1317,55 @@ function renderDraftTab(d){
   const MB={rakuten:["楽天","rakuten"],yahoo:["Yahoo!","yahoo"],ichiba:["市場","ichiba"]};
   const fd=v=>v?String(v).slice(5).replace("-","/"):"";
   const HK={"0":"","1":"午前","2":"午後","8":"まで"};
-  const n=(d.drafts||[]).length+(d.cands||[]).length+(d.kakou||[]).length;
+  const today=localISO();
+  // 仮登録済みの注文・予定表行は候補側から消す（同じ相手が2回出て重複しないように）
+  const dOrder={}, dKakou={};
+  (d.drafts||[]).forEach(x=>{ const f=x.form||{}; if(f.linked&&f.linked.id) dOrder[String(f.linked.id)]=1; if(f.kakouUid) dKakou[String(f.kakouUid)]=1; });
+  const cands=(d.cands||[]).map((c,i)=>({c:c,i:i})).filter(o=>!dOrder[String(o.c.id)] && !(o.c.kakou&&dKakou[String(o.c.kakou.uid)]));
+  const kakou=(d.kakou||[]).map((r,i)=>({r:r,i:i})).filter(o=>!dKakou[String(o.r.uid)]);
+  const n=(d.drafts||[]).length+cands.length+kakou.length;
   updateDraftBadge(n);
   $("#draft-sub").textContent="（"+n+"件"+(d.at?("・"+new Date(d.at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})+"取得"):"")+"）";
-  let h="";
-  h+='<div class="dsec">🗒 仮登録（保存した下書き）<span class="cnt2">'+(d.drafts||[]).length+'</span></div>';
-  if(!(d.drafts||[]).length) h+='<div class="hint" style="padding:4px 8px 8px">まだありません。発行フォームの「🗒 仮登録として保存」で残せます。</div>';
-  (d.drafts||[]).forEach((x,i)=>{ const f=x.form||{}; const sb=f.linked?["注文","other"]:(f.kakouUid?["予定表","other"]:["手入力","other"]);
-    h+='<div class="dcard"><span class="mbadge '+sb[1]+'" style="background:#8a7350">'+sb[0]+'</span><div class="dbody"><b class="nm">'+esc(x.label||"")+'</b>'
+  // 出荷日バッジ（本日=緑・過ぎた=赤・先の日=グレー・未設定）
+  const dueTag=due=>{ if(!due) return '<span class="duetag none">出荷日 未設定</span>'; if(due===today) return '<span class="duetag today">🚚 本日出荷 '+fd(due)+'</span>'; if(due<today) return '<span class="duetag past">⚠️ 出荷日 '+fd(due)+'（過ぎています）</span>'; return '<span class="duetag later">📅 出荷 '+fd(due)+'</span>'; };
+  // カード生成（i=元配列のindex＝open関数に渡す）
+  const cardDraft=(x,i)=>{ const f=x.form||{}; const sb=f.linked?"注文":(f.kakouUid?"予定表":"手入力");
+    return '<div class="dcard"><span class="mbadge other" style="background:#8a7350">仮登録<br>'+sb+'</span><div class="dbody"><b class="nm">'+esc(x.label||"")+'</b> '+dueTag(f["f-date"]||"")
       +'<div class="meta">'+esc((f["f-zip"]?("〒"+f["f-zip"]+" "):"")+(f["f-addr"]||"")+(f["f-tel"]?("　TEL "+f["f-tel"]):""))+'</div>'
       +'<div class="meta">'+esc([f["f-kiji1"],f["f-kiji2"]].filter(Boolean).join(" "))+(f.tome&&f["f-branch"]?("　"+esc(f["f-branch"])+"止め"):"")+(f["f-yuso"]==="02"&&f["f-haitatsu-date"]?("　着日 "+fd(f["f-haitatsu-date"])+" "+(HK[f["f-haitatsu-kbn"]]||"")):"")+'　保存 '+esc(String(x.updatedAt||"").slice(5,16))+'</div></div>'
-      +'<div class="dbtns"><button style="background:var(--accent);color:#fff" onclick="draftOpen('+i+')">✏️ 開く → 確認して発行</button><button style="background:#fff;border:1px solid var(--line);color:var(--warn)" onclick="draftDelete(\''+esc(x.id)+'\',\''+esc(x.label||"")+'\')">🗑 削除</button></div></div>'; });
-  h+='<div class="dsec">🛒 楽天・ヤフーの注文（西濃・未発行）<span class="cnt2">'+(d.cands||[]).length+'</span></div>';
-  if(!(d.cands||[]).length) h+='<div class="hint" style="padding:4px 8px 8px">西濃・未発行の注文はありません</div>';
-  (d.cands||[]).forEach((c,i)=>{ const m=MB[c.mall]||["その他","other"]; const k=c.kakou;
+      +'<div class="dbtns"><button style="background:var(--accent);color:#fff" onclick="draftOpen('+i+')">✏️ 開く → 確認して発行</button><button style="background:#fff;border:1px solid var(--line);color:var(--warn)" onclick="draftDelete(\''+esc(x.id)+'\',\''+esc(x.label||"")+'\')">🗑 削除</button></div></div>'; };
+  const cardCand=(c,i)=>{ const m=MB[c.mall]||["その他","other"]; const k=c.kakou;
     const corpNg=(String(c.custType||"").indexOf("法人")>=0 && !c.corpName);
-    h+='<div class="dcard"><span class="mbadge '+m[1]+'">'+m[0]+'</span><div class="dbody"><b class="nm">'+esc(c.customer)+' 様</b>'+(c.corpName?' <span class="mbadge other" style="background:#2e7d32">法人 '+esc(c.corpName)+'</span>':'')+(corpNg?' <span class="mbadge other" style="background:var(--warn)">法人名 未確認</span>':'')+(c.custType==="個人"&&c.branch?' <span class="mbadge other" style="background:#e8721b">'+esc(c.branch)+'止め</span>':'')
+    return '<div class="dcard"><span class="mbadge '+m[1]+'">'+m[0]+'</span><div class="dbody"><b class="nm">'+esc(c.customer)+' 様</b>'+(c.corpName?' <span class="mbadge other" style="background:#2e7d32">法人 '+esc(c.corpName)+'</span>':'')+(corpNg?' <span class="mbadge other" style="background:var(--warn)">法人名 未確認</span>':'')+(c.custType==="個人"&&c.branch?' <span class="mbadge other" style="background:#e8721b">'+esc(c.branch)+'止め</span>':'')+' '+(k?dueTag(k.due):'')
       +'<div class="meta">'+esc((c.zip?("〒"+c.zip+" "):"")+(c.addr||"")+(c.tel?("　TEL "+c.tel):""))+'</div>'
       +'<div class="meta">'+esc((c.items||[]).map(x=>x.name.replace(/【.*?】|\s+/g," ").trim().slice(0,28)+"×"+x.qty).join("／"))+'</div>'
       +'<div class="meta">注文の計算: '+c.kosu+'個口・'+c.weightKg+'kg（'+esc([c.kiji1,c.kiji2].filter(Boolean).join(" "))+'）'+(c.deliveryDate?('　お客様の着日希望 <b>'+fd(c.deliveryDate)+'</b>'):'')+'</div>'
       +(corpNg?'<div class="meta" style="color:var(--warn);font-weight:700">⚠️ 法人のお客様ですが法人名・法人住所が未登録です。order-deskのドロワーで登録してから発行してください（宛名は法人名で出ます）</div>':'')
-      +(k?('<div class="meta" style="color:#e65100;font-weight:700">📋 加工予定表: '+k.planned+'口'+(k.length?('・'+Math.round(Number(k.length)/100)/10+'m'):'')+(k.grade?('・'+esc(k.grade)):'')+(k.due?('・出荷 '+fd(k.due)):'')+(k.chaku?('・着日 '+fd(k.chaku)+' '+esc(k.chakuKbn||"")):'')+(k.actual&&k.actual!=='-'?('　<span style="color:#c0392b">'+esc(k.actual)+'中</span>'):'')+'</div>'):'<div class="meta" style="color:#999">📋 加工予定表に西濃の行なし（束数は注文の計算値）</div>')
-      +'</div><div class="dbtns"><button style="background:var(--accent);color:#fff" onclick="candOpen('+i+')">✏️ 確認して発行へ</button></div></div>'; });
-  h+='<div class="dsec">📋 加工予定表の西濃出荷（市場・手入力の行）<span class="cnt2">'+(d.kakou||[]).length+'</span></div>';
-  if(!(d.kakou||[]).length) h+='<div class="hint" style="padding:4px 8px 8px">未発行の行はありません'+(d.issuedN?('（発行済み '+d.issuedN+'行は非表示）'):'')+'</div>';
-  (d.kakou||[]).forEach((r,i)=>{
-    h+='<div class="dcard"><span class="mbadge ichiba">予定表</span><div class="dbody"><b class="nm">'+esc(r.customer)+'</b>'
+      +(k?('<div class="meta" style="color:#e65100;font-weight:700">📋 加工予定表: '+k.planned+'口'+(k.length?('・'+Math.round(Number(k.length)/100)/10+'m'):'')+(k.grade?('・'+esc(k.grade)):'')+(k.due?('・出荷 '+fd(k.due)):'')+(k.chaku?('・着日 '+fd(k.chaku)+' '+esc(k.chakuKbn||"")):'')+(k.actual&&k.actual!=='-'?('　<span style="color:#c0392b">'+esc(k.actual)+'中</span>'):'')+(k.remark?('　<span style="color:#555;font-weight:400">'+esc(k.remark)+'</span>'):'')+'</div>'):'<div class="meta" style="color:#999">📋 加工予定表に西濃の行なし（束数は注文の計算値）</div>')
+      +'</div><div class="dbtns"><button style="background:var(--accent);color:#fff" onclick="candOpen('+i+')">✏️ 確認して発行へ</button></div></div>'; };
+  const cardKakou=(r,i)=>'<div class="dcard"><span class="mbadge ichiba">予定表</span><div class="dbody"><b class="nm">'+esc(r.customer)+'</b> '+dueTag(r.due)
       +'<div class="meta">'+esc([r.hinmei==="F"?"フローリング":r.hinmei==="P"?"羽目板":r.hinmei, r.grade, [r.thickness,r.width,r.length].filter(Boolean).join("×")].filter(Boolean).join(" "))+'　<b>'+r.planned+'口</b>'+(r.qty?('（'+r.qty+'枚入）'):'')+'</div>'
       +'<div class="meta">出荷 <b>'+(fd(r.due)||"未設定")+'</b>'+(r.chaku?('　着日 <b>'+fd(r.chaku)+' '+esc(r.chakuKbn||"")+'</b>'):'')+(r.actual&&r.actual!=='-'?('　<span style="color:#c0392b">'+esc(r.actual)+'</span>'):'')+(r.remark?('　'+esc(r.remark)):'')+'</div>'
       +(r.important_note?('<div class="meta" style="color:#b71c1c;font-weight:700">⚠️ '+esc(r.important_note)+'</div>'):'')
-      +'</div><div class="dbtns"><button style="background:#e65100;color:#fff" onclick="kakouOpen('+i+')">✏️ 確認して発行へ</button></div></div>'; });
+      +'</div><div class="dbtns"><button style="background:#e65100;color:#fff" onclick="kakouOpen('+i+')">✏️ 確認して発行へ</button></div></div>';
+  // 本日出荷（加工予定表の出荷日=今日）と、それ以外に分ける
+  const G={today:{drafts:[],cands:[],kakou:[]}, other:{drafts:[],cands:[],kakou:[]}};
+  const put=(kind,html,due)=>{ (due===today?G.today:G.other)[kind].push({html:html,due:due||""}); };
+  (d.drafts||[]).forEach((x,i)=>put("drafts",cardDraft(x,i),(x.form||{})["f-date"]||""));
+  cands.forEach(o=>put("cands",cardCand(o.c,o.i),o.c.kakou?o.c.kakou.due:""));
+  kakou.forEach(o=>put("kakou",cardKakou(o.r,o.i),o.r.due||""));
+  const section=(title,arr)=>{ if(!arr.length) return ""; let h='<div class="dsec">'+title+'<span class="cnt2">'+arr.length+'</span></div>'; arr.forEach(x=>{ h+=x.html; }); return h; };
+  const byDue=(a,b)=>(a.due||"9999")<(b.due||"9999")?-1:(a.due||"9999")>(b.due||"9999")?1:0;
+  const group=(key,title,cls,emptyMsg)=>{ const g=G[key]; const cnt=g.drafts.length+g.cands.length+g.kakou.length;
+    if(key==="other") ["drafts","cands","kakou"].forEach(k=>g[k].sort(byDue));   // それ以外は出荷日順（未設定は最後）
+    let h='<div class="dgrp '+cls+'"><div class="dgrp-h">'+title+'<span class="cnt3">'+cnt+'件</span></div>';
+    if(!cnt) h+='<div class="hint" style="padding:4px 8px 8px">'+emptyMsg+'</div>';
+    else { h+=section('🗒 仮登録（保存した下書き）',g.drafts); h+=section('🛒 楽天・ヤフーの注文（西濃・未発行）',g.cands); h+=section('📋 加工予定表の西濃出荷（市場・手入力の行）',g.kakou); }
+    return h+'</div>'; };
+  let h="";
+  h+=group("today","🚚 本日出荷 "+fd(today)+"（加工予定表の出荷日が今日）","today","本日出荷の西濃はありません");
+  h+=group("other","📅 それ以外（出荷日が別の日・未設定）","other","ありません"+(d.issuedN?('（発行済み '+d.issuedN+'行は非表示）'):''));
+  if(!n) h+='<div class="hint" style="padding:8px">仮登録は発行フォームの「🗒 仮登録として保存」で残せます。</div>';
   el.innerHTML=h;
 }
 
