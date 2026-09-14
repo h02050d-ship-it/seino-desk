@@ -163,6 +163,7 @@ button.primary:disabled{opacity:.5;cursor:default}
     </div>
     <div id="kakou-banner" style="display:none;background:#fff3e0;border-left:4px solid #e65100;border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:10px">
       📋 加工予定表から: <b id="kakou-label"></b>　<span id="kakou-src" class="hint" style="margin:0"></span>
+      <a id="kakou-hacchu-link" href="#" target="_blank" rel="noopener" style="display:none;margin-left:8px;color:#1565c0;font-weight:700">📄 発注書を別タブで開く</a>
       <a href="#" onclick="kakouClear();return false" style="margin-left:8px;color:var(--warn)">解除</a>
       <div id="kakou-note" style="display:none;margin-top:5px;color:#b71c1c;font-weight:700"></div>
     </div>
@@ -1173,6 +1174,8 @@ function showKakouBanner(src, note){
   $("#kakou-label").textContent=(KAKOU_INFO&&KAKOU_INFO.label)||"";
   $("#kakou-src").textContent=src||"";
   const n=$("#kakou-note"); if(note){ n.textContent="⚠️ 忘れちゃいけないメモ: "+note; n.style.display="block"; } else n.style.display="none";
+  const hl=$("#kakou-hacchu-link"); const hu=KAKOU_INFO&&KAKOU_INFO.hacchu&&KAKOU_INFO.hacchu.fileUrl;
+  if(hl){ if(hu){ hl.href=hu; hl.style.display="inline"; } else hl.style.display="none"; }
   $("#kakou-banner").style.display="block";
 }
 function parseKakouHash(){
@@ -1374,7 +1377,8 @@ function renderDraftTab(d){
       +kakouAddrLine(r)
       +'<div class="meta">出荷 <b>'+(fd(r.due)||"未設定")+'</b>'+(r.chaku?('　着日 <b>'+fd(r.chaku)+' '+esc(r.chakuKbn||"")+'</b>'):'')+(r.actual&&r.actual!=='-'?('　<span style="color:#c0392b">'+esc(r.actual)+'</span>'):'')+(r.remark?('　'+esc(r.remark)):'')+'</div>'
       +(r.important_note?('<div class="meta" style="color:#b71c1c;font-weight:700">⚠️ '+esc(r.important_note)+'</div>'):'')
-      +'</div><div class="dbtns"><button style="background:#e65100;color:#fff" onclick="kakouOpen('+i+')">✏️ 確認して発行へ</button></div></div>';
+      +'</div><div class="dbtns"><button style="background:#e65100;color:#fff" onclick="kakouOpen('+i+')">✏️ 確認して発行へ</button>'
+      +(r.hacchu&&r.hacchu.fileUrl?('<a href="'+esc(r.hacchu.fileUrl)+'" target="_blank" rel="noopener" style="display:block;text-align:center;background:#fff;border:1px solid #1565c0;color:#1565c0;border-radius:8px;padding:6px 10px;font-size:12px;text-decoration:none">📄 発注書を別タブで開く</a>'):'')+'</div></div>';
   // 本日出荷（加工予定表の出荷日=今日）と、それ以外に分ける
   const G={today:{drafts:[],cands:[],kakou:[]}, other:{drafts:[],cands:[],kakou:[]}};
   const put=(kind,html,due)=>{ (due===today?G.today:G.other)[kind].push({html:html,due:due||""}); };
