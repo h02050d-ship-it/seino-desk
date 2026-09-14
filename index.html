@@ -776,9 +776,10 @@ async function shimeAll(){
   toast("実行中…");
   try{
     const p1=await gasGet("seinolistprint");
+    if(await voidPendingBlock(p1)) return;   // 取消した送り状がKM2に残っている→理由を出して止める（2026-09-14: 一括だけ理由なしの「失敗」だった）
     const p2=await gasGet("seinoefax");
     const p3=await gasGet2("seinopickupqueue","biko="+encodeURIComponent(pickupBikoParam()));
-    alert("🖨 印刷: "+(p1.ok?"キュー済（十数秒で会社PCから出ます）":"失敗")
+    alert("🖨 印刷: "+(p1.ok?"キュー済（十数秒で会社PCから出ます）":("失敗（"+(p1.message||p1.error||"")+"）"))
       +"\n📠 FAX（荷主控え）: "+(p2.queued?"キュー済（1分以内に送信）":("失敗（"+(p2.error||"")+"）"))
       +"\n🚛 集荷: "+(p3.queued?("依頼キュー済 "+p3.kosu+"個口・"+p3.weightKg+"kg（1分以内に送信）"):("実行なし（"+(p3.error||"対象なし")+"）")));
     loadToday();             // 締めステータス（⏳処理中→✅済み）を反映
