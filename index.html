@@ -1227,13 +1227,24 @@ async function kakouPrefill(r){
     $("#f-name").value=(r.name||r.customer||"").slice(0,30);
     await loadPartners(false);
     const p=findPartner(r.name, r.customer);
-    if(p){
-      if(p.name) $("#f-name").value=String(p.name).slice(0,30);
+    const h=r.hacchu, dv=h&&h.deliver;                                  // 発注書(order-desk市場取込)の納入先
+    const hsrc=h?("発注書（"+(h.date?String(h.date).slice(5).replace("-","/"):"")+(h.src==="fax"?" FAX":" メール")+(dv&&dv.person?("・担当 "+dv.person):"")+"）"):"";
+    if(p&&p.name) $("#f-name").value=String(p.name).slice(0,30);        // 宛名は取引先マスタの正式名（例: ナイス（株）相模原）
+    if(dv&&(dv.zip||dv.addr)){
+      if(dv.zip) $("#f-zip").value=dv.zip;
+      if(dv.addr) $("#f-addr").value=dv.addr;
+      const t=String(dv.tel||(p&&p.tel)||"").replace(/[^0-9]/g,""); if(t) $("#f-tel").value=t;
+      const nm=_normName(dv.name), pn=_normName($("#f-name").value);
+      if(dv.name && nm && !(pn.indexOf(nm)>=0||nm.indexOf(pn)>=0)) $("#f-name2").value=String(dv.name).slice(0,30);   // 納入先名が宛名と違えば届け先名称2へ（例: 相模原市場個別倉庫）
+      src=hsrc+"の納入先を転記しました: "+(dv.name||"")+" 〒"+dv.zip+" "+dv.addr+(dv.tel?("　TEL "+dv.tel):(t?"　TEL は取引先マスタ":"　⚠️TELなし"))+"。〒・電話を確認してください";
+      if(dv.tome){ if(dv.branch&&OFFICES.includes(dv.branch)){ $("#f-tome").checked=true; $("#f-branch").value=dv.branch; tomeToggle(); src+="／ターミナル止め（"+dv.branch+"）を設定しました"; } else src+="／⚠️ 発注書にターミナル止め指定あり＝輸送指示で支店止めを選んでください"; }
+    } else if(p){
       if(p.zip){ const z=String(p.zip).replace(/[^0-9]/g,""); if(z) $("#f-zip").value=z; }
       if(p.addr) $("#f-addr").value=p.addr;
       if(p.tel){ const t=String(p.tel).replace(/[^0-9]/g,""); if(t) $("#f-tel").value=t; }
-      src="取引先マスタ「"+p.name+"」の住所を転記しました。〒・電話を確認してください";
-    } else src="取引先マスタに見つかりません。「📇 お届け先検索」で選んでください";
+      src="取引先マスタ「"+p.name+"」の住所を転記しました"+(h?("（"+hsrc+"はあるが住所を読み取れず）"):"")+"。〒・電話を確認してください";
+    } else src="取引先マスタに見つかりません"+(h?("（"+hsrc+"はあるが住所を読み取れず）"):"")+"。「📇 お届け先検索」で選んでください";
+    if(h) KAKOU_INFO.hacchu={id:h.id, fileUrl:h.fileUrl||"", no:(dv&&dv.no)||""};
   }
   showKakouBanner(src, r.note||r.important_note||"");
   loadKakouHint();
@@ -1308,7 +1319,7 @@ async function loadDraftTab(force){
   else if(!DRAFT_CACHE){ const c=swrGet("seinodesk_drafts",3*3600*1000); if(c){ DRAFT_CACHE=c; renderDraftTab(c); } }
   else renderDraftTab(DRAFT_CACHE);
   try{
-    const [a,b,c]=await Promise.all([gasGet("seinocandidates").catch(()=>({})), gasGet("seinokakoupending").catch(()=>({})), gasGet("seinodraftlist").catch(()=>({}))]);
+    const [a,b,c]=await Promise.all([gasGet("seinocandidates").catch(()=>({})), gasGet("seinokakoupending").catch(()=>({})), gasGet("seinodraftlist").catch(()=>({})), loadPartners(false).catch(()=>{})]);
     if(!a.ok && !b.ok && !c.ok){ if(!DRAFT_CACHE && el) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; return; }
     const cands=(a.list||[]).filter(x=>x.mall==="rakuten"||x.mall==="yahoo");   // 市場(FAX/メール取込)は個口1/1kgのダミー＝予定表の行の方で出す
     const kak=(b.rows||[]);
@@ -1351,8 +1362,16 @@ function renderDraftTab(d){
       +(corpNg?'<div class="meta" style="color:var(--warn);font-weight:700">⚠️ 法人のお客様ですが法人名・法人住所が未登録です。order-deskのドロワーで登録してから発行してください（宛名は法人名で出ます）</div>':'')
       +(k?('<div class="meta" style="color:#e65100;font-weight:700">📋 加工予定表: '+k.planned+'口'+(k.length?('・'+Math.round(Number(k.length)/100)/10+'m'):'')+(k.grade?('・'+esc(k.grade)):'')+(k.due?('・出荷 '+fd(k.due)):'')+(k.chaku?('・着日 '+fd(k.chaku)+' '+esc(k.chakuKbn||"")):'')+(k.actual&&k.actual!=='-'?('　<span style="color:#c0392b">'+esc(k.actual)+'中</span>'):'')+(k.remark?('　<span style="color:#555;font-weight:400">'+esc(k.remark)+'</span>'):'')+'</div>'):'<div class="meta" style="color:#999">📋 加工予定表に西濃の行なし（束数は注文の計算値）</div>')
       +'</div><div class="dbtns"><button style="background:var(--accent);color:#fff" onclick="candOpen('+i+')">✏️ 確認して発行へ</button></div></div>'; };
+  // 予定表(手入力)行の届け先: ①発注書(order-desk市場取込)の納入先 ②取引先マスタ ③なし
+  const kakouAddrLine=(r)=>{ const h=r.hacchu, dv=h&&h.deliver;
+    const hsrc=h?('発注書'+(h.date?('（'+fd(h.date)+(h.src==="fax"?" FAX":" メール")+(dv&&dv.person?('・担当 '+esc(dv.person)):'')+(dv&&dv.no?('・No.'+esc(dv.no)):'')+'）'):'')+(h.fileUrl?(' <a href="'+esc(h.fileUrl)+'" target="_blank" style="font-weight:400">原本</a>'):'')):'';
+    if(dv&&(dv.zip||dv.addr)) return '<div class="meta" style="color:#1565c0;font-weight:700">📄 '+hsrc+': 納入先 '+esc(dv.name||"")+'　〒'+esc(dv.zip)+' '+esc(dv.addr)+(dv.tel?('　TEL '+esc(dv.tel)):'')+(dv.tome?(' <span class="mbadge other" style="background:#e8721b">ターミナル止め'+(dv.branch?('('+esc(dv.branch)+')'):'')+'</span>'):'')+'</div>';
+    const p=findPartner(r.name, r.customer);
+    if(p&&(p.zip||p.addr)) return '<div class="meta">📇 取引先マスタ「'+esc(p.name)+'」: 〒'+esc(String(p.zip||'').replace(/[^0-9]/g,''))+' '+esc(p.addr||'')+(p.tel?('　TEL '+esc(String(p.tel))):'')+(h?('　<span style="color:#e65100">📄 '+hsrc+'あり（住所は読み取れず）</span>'):'')+'</div>';
+    return '<div class="meta" style="color:var(--warn);font-weight:700">⚠️ 届け先住所なし（発注書・取引先マスタとも見つからず）→ 開いてから「📇 お届け先検索」で選んでください</div>'; };
   const cardKakou=(r,i)=>'<div class="dcard"><span class="mbadge ichiba">予定表</span><div class="dbody"><b class="nm">'+esc(r.customer)+'</b> '+dueTag(r.due)
       +'<div class="meta">'+esc([r.hinmei==="F"?"フローリング":r.hinmei==="P"?"羽目板":r.hinmei, r.grade, [r.thickness,r.width,r.length].filter(Boolean).join("×")].filter(Boolean).join(" "))+'　<b>'+r.planned+'口</b>'+(r.qty?('（'+r.qty+'枚入）'):'')+'</div>'
+      +kakouAddrLine(r)
       +'<div class="meta">出荷 <b>'+(fd(r.due)||"未設定")+'</b>'+(r.chaku?('　着日 <b>'+fd(r.chaku)+' '+esc(r.chakuKbn||"")+'</b>'):'')+(r.actual&&r.actual!=='-'?('　<span style="color:#c0392b">'+esc(r.actual)+'</span>'):'')+(r.remark?('　'+esc(r.remark)):'')+'</div>'
       +(r.important_note?('<div class="meta" style="color:#b71c1c;font-weight:700">⚠️ '+esc(r.important_note)+'</div>'):'')
       +'</div><div class="dbtns"><button style="background:#e65100;color:#fff" onclick="kakouOpen('+i+')">✏️ 確認して発行へ</button></div></div>';
