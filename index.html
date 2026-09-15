@@ -729,6 +729,9 @@ async function loadToday(){
   }catch(e){ if(!TODAY_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
 }
 // ---- 確認モーダル（スクロールなし・内容に合わせて縮む） ----
+// ブラウザが「このページでダイアログを表示しない」状態だと native confirm() は黙って false を返し「押しても何も起きない」になる（2026-09-15 岸川様7口で発生）
+// → 発行系の最終確認は画面内モーダル(uiConfirm)で出す。改行付きの素のテキストを渡す
+function uiConfirmText(text, okLabel){ return uiConfirm('<div style="white-space:pre-wrap;font-size:14px;line-height:1.55">'+esc(String(text||""))+'</div>', okLabel); }
 function uiConfirm(html, okLabel){
   return new Promise(res=>{
     $("#confirm-body").innerHTML=html;
@@ -771,10 +774,10 @@ function destMismatchLines(zip, addr, tel, skipAddr){
   return out.length?(out.join("\n")+"\n\n"):"";
 }
 // 電話番号の桁数チェック（数字のみ9〜11桁でなければ確定前に止める。OKなら通す）
-function telDigitsOk(tel){
+async function telDigitsOk(tel){
   const t=String(tel||"").replace(/[^0-9]/g,"");
   if(t.length>=9 && t.length<=11) return true;
-  return confirm("電話番号 "+tel+" は桁数が合いません（"+t.length+"桁）。このまま登録しますか？");
+  return uiConfirmText("電話番号 "+tel+" は桁数が合いません（"+t.length+"桁）。このまま登録しますか？","このまま登録");
 }
 function applyKakou(n,uid){ $("#f-kosu").value=String(n); if($("#f-kosu").value!==String(n)){ toast("個口 "+n+" はプルダウンにありません"); return; } KAKOU_UID=uid||""; autoWeight(); toast("個口 "+n+"・重量 "+$("#f-kg").value+"kg を転記しました（加工予定表と紐付け）"); }
 function gasGet(action){ return fetch(API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass)).then(r=>r.json()); }
@@ -1783,7 +1786,7 @@ async function createOkurijo(doPrintArg){
   const hoken=parseInt($("#f-hoken").value,10)||0;
   const dShina=parseInt($("#f-daibiki-shina").value,10)||0;
   const dTax=parseInt($("#f-daibiki-tax").value,10);
-  if(!telDigitsOk(tel)) return;                                     // 電話番号の桁数（9〜11桁）が合わなければ確定前に止める
+  if(!(await telDigitsOk(tel))) return;                                     // 電話番号の桁数（9〜11桁）が合わなければ確定前に止める
   const dnote=deliveryNoteFor(name,addr,tel);
   const mism=destMismatchLines(zip,addr,tel,tome);                   // 転記元（取引先マスタ/発注書/注文候補）と違えば警告行
   let msg="【西濃 送り状発行】🟢本番\n\n"+(KAKOU_NOTE?("⚠️ メモ: "+KAKOU_NOTE+"\n\n"):"")+mism+(dnote?("⚠️ この届け先の特記事項\n"+dnote+"\n\n"):"")+"届け先: "+name+"\n"
@@ -1799,7 +1802,7 @@ async function createOkurijo(doPrintArg){
   msg+="\n出荷予定日: "+$("#f-date").value
     +"\n印刷: "+(doPrint?"会社PCで自動印刷":"しない（登録のみ）")
     +"\n\nよろしいですか？";
-  if(!confirm(msg)) return;
+  if(!(await uiConfirmText(msg,"発行する"))){ toast("発行を中止しました"); return; }
   $("#btn-go").disabled=true; $("#btn-go2").disabled=true; toast("西濃へ登録中…");
   const body={email:CRED.email,pass:CRED.pass,action:"seinocreate",
     customer:name,zip:zip,addr:addr,tel:tel,kosu:kosu,juryoKg:kg,motochaku:motochaku,
@@ -1868,9 +1871,9 @@ async function issueLinked(wantPrint){ // order-desk連携発行: seinoissue(番
   const _yuso=$("#f-yuso").value, _hd=($("#f-haitatsu-date").value||""), _kbn=$("#f-haitatsu-kbn").value;
   const _HK={"0":"希望無","1":"午前","2":"午後","8":"まで"};
   const _chaku=(_yuso==="02"&&_hd)?(_hd.slice(5).replace("-","/")+"（"+(_HK[_kbn]||"")+"）"):"";
-  if(!telDigitsOk($("#f-tel").value)) return;                        // 電話番号の桁数（9〜11桁）が合わなければ確定前に止める
+  if(!(await telDigitsOk($("#f-tel").value))) return;                        // 電話番号の桁数（9〜11桁）が合わなければ確定前に止める
   const _mism=destMismatchLines($("#f-zip").value,$("#f-addr").value,$("#f-tel").value,$("#f-tome").checked);
-  if(!confirm("【西濃 送り状発行】🟢本番・order-desk連携\n\n"+(KAKOU_NOTE?("⚠️ メモ: "+KAKOU_NOTE+"\n\n"):"")+_mism+"注文: "+c.customer+" 様\n個口: "+($("#f-kosu").value||"")+"個口\n出荷予定日: "+$("#f-date").value+(_chaku?("\n着日指定: "+_chaku):"")+"\n\norder-deskの登録情報（届け先・法人名）で出荷登録し、"+(wantPrint===false?"登録のみ行います。":"会社PCで自動印刷します。")+"\n送り状番号はorder-deskにも保存されます。よろしいですか？")) return;
+  if(!(await uiConfirmText("【西濃 送り状発行】🟢本番・order-desk連携\n\n"+(KAKOU_NOTE?("⚠️ メモ: "+KAKOU_NOTE+"\n\n"):"")+_mism+"注文: "+c.customer+" 様\n個口: "+($("#f-kosu").value||"")+"個口\n出荷予定日: "+$("#f-date").value+(_chaku?("\n着日指定: "+_chaku):"")+"\n\norder-deskの登録情報（届け先・法人名）で出荷登録し、"+(wantPrint===false?"登録のみ行います。":"会社PCで自動印刷します。")+"\n送り状番号はorder-deskにも保存されます。よろしいですか？","発行する"))){ toast("発行を中止しました"); return; }
   $("#btn-go").disabled=true; $("#btn-go2").disabled=true; toast("西濃へ登録中…");
   try{
     let _u=API_URL+"?action=seinoissue&id="+encodeURIComponent(c.id)+(wantPrint===false?"&print=0":"")+"&date="+encodeURIComponent($("#f-date").value.replace(/-/g,""));
