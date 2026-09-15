@@ -1873,7 +1873,7 @@ async function issueLinked(wantPrint){ // order-desk連携発行: seinoissue(番
   const _chaku=(_yuso==="02"&&_hd)?(_hd.slice(5).replace("-","/")+"（"+(_HK[_kbn]||"")+"）"):"";
   if(!(await telDigitsOk($("#f-tel").value))) return;                        // 電話番号の桁数（9〜11桁）が合わなければ確定前に止める
   const _mism=destMismatchLines($("#f-zip").value,$("#f-addr").value,$("#f-tel").value,$("#f-tome").checked);
-  if(!(await uiConfirmText("【西濃 送り状発行】🟢本番・order-desk連携\n\n"+(KAKOU_NOTE?("⚠️ メモ: "+KAKOU_NOTE+"\n\n"):"")+_mism+"注文: "+c.customer+" 様\n個口: "+($("#f-kosu").value||"")+"個口\n出荷予定日: "+$("#f-date").value+(_chaku?("\n着日指定: "+_chaku):"")+"\n\norder-deskの登録情報（届け先・法人名）で出荷登録し、"+(wantPrint===false?"登録のみ行います。":"会社PCで自動印刷します。")+"\n送り状番号はorder-deskにも保存されます。よろしいですか？","発行する"))){ toast("発行を中止しました"); return; }
+  if(!(await uiConfirmText("【西濃 送り状発行】🟢本番・order-desk連携\n\n"+(KAKOU_NOTE?("⚠️ メモ: "+KAKOU_NOTE+"\n\n"):"")+_mism+"注文: "+c.customer+" 様\n個口: "+($("#f-kosu").value||"")+"個口\n出荷予定日: "+$("#f-date").value+(_chaku?("\n着日指定: "+_chaku):"")+(String($("#f-kiji2").value||"").trim()?("\n記事: "+$("#f-kiji1").value+" "+$("#f-kiji2").value):"")+"\n\norder-deskの登録情報（届け先・法人名）で出荷登録し、"+(wantPrint===false?"登録のみ行います。":"会社PCで自動印刷します。")+"\n送り状番号はorder-deskにも保存されます。よろしいですか？","発行する"))){ toast("発行を中止しました"); return; }
   $("#btn-go").disabled=true; $("#btn-go2").disabled=true; toast("西濃へ登録中…");
   try{
     let _u=API_URL+"?action=seinoissue&id="+encodeURIComponent(c.id)+(wantPrint===false?"&print=0":"")+"&date="+encodeURIComponent($("#f-date").value.replace(/-/g,""));
@@ -1883,6 +1883,7 @@ async function issueLinked(wantPrint){ // order-desk連携発行: seinoissue(番
     if(_tel && _tel!==_o.tel) _u+="&tel="+encodeURIComponent(_tel);
     if(_zip && _zip!==_o.zip) _u+="&zip="+encodeURIComponent(_zip);
     if(_addr && _addr!==_o.addr) _u+="&addr="+encodeURIComponent(_addr);
+    const _k2=String($("#f-kiji2").value||"").trim(); if(_k2 && _k2!==String(c.kiji2||"").trim()) _u+="&kiji2="+encodeURIComponent(_k2);   // 画面で足した記事(1階渡し可 など)は連携発行でも送る(GAS kiji2Ov)
     _u+="&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass);
     let r=await fetch(_u);
     let j=await r.json();
