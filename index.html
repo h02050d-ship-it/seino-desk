@@ -1749,6 +1749,16 @@ function onKgPicked(){              // 重量を人が選んだ直後に推定�
 const DELIVERY_NOTES = [
   { match: /河内|里深|新野東\s*685|下浦|0908065166/, note: "配達前に下浦大工様（090-8065-1666）へ電話が入るよう手配する（届け先TELを下浦様の番号にする）。梱包に「配達前 電話連絡のお願い」ラベルを貼付。" },
 ];
+// ===== 4m長尺×都市部ビル宛ての事前確認（2026-09-16 神戸三宮・新神戸歯科の事例: 営業所の車が入れず「営業所止め or チャーター2.5万」になった）=====
+// 4m材で届け先が政令市・都心区・ビル/階付き住所なら、発行前に西濃袋井へ配達可否を確認したかを問う。
+const URBAN_RE=/(札幌|仙台|さいたま|千葉|川崎|横浜|相模原|新潟|静岡|浜松|名古屋|京都|大阪|堺|神戸|岡山|広島|北九州|福岡|熊本)市|千代田区|中央区|港区|新宿区|渋谷区|豊島区|台東区|品川区|中区|北区|西区|東区|南区|ビル|[0-9０-９]+\s*[階Ｆ]|[0-9０-９]+F\b/;
+function is4mForm(){ return KAKOU_KG_PER>=40 || /^4m/.test(String($("#f-kiji1").value||"")) || /4000|4m|４ｍ/.test(String($("#f-kiji1").value||"")+String($("#f-kiji2").value||"")); }
+function urbanNoteFor(addr,tome){
+  if(tome) return "";
+  if(!is4mForm()) return "";
+  if(!URBAN_RE.test(String(addr||""))) return "";
+  return "4m材が都市部・ビル宛てです。営業所の配達車に4mが載らず「営業所止め or チャーター(2.5万円)」になることがあります。\n発行前に西濃袋井 うすいさん(0538-42-1138)へ「この住所に4mを届けられるか」を確認しましたか？ 未確認なら中止して先に電話。";
+}
 function deliveryNoteFor(){
   const hay = Array.prototype.slice.call(arguments).filter(Boolean).join(" ").replace(/[-‐-―ー\s]/g, "");
   for (const d of DELIVERY_NOTES) { if (d.match.test(hay)) return d.note; }
@@ -1788,8 +1798,9 @@ async function createOkurijo(doPrintArg){
   const dTax=parseInt($("#f-daibiki-tax").value,10);
   if(!(await telDigitsOk(tel))) return;                                     // 電話番号の桁数（9〜11桁）が合わなければ確定前に止める
   const dnote=deliveryNoteFor(name,addr,tel);
+  const unote=urbanNoteFor(addr,tome);                                // 4m×都市部ビル宛て → 西濃へ配達可否を事前確認したか
   const mism=destMismatchLines(zip,addr,tel,tome);                   // 転記元（取引先マスタ/発注書/注文候補）と違えば警告行
-  let msg="【西濃 送り状発行】🟢本番\n\n"+(KAKOU_NOTE?("⚠️ メモ: "+KAKOU_NOTE+"\n\n"):"")+mism+(dnote?("⚠️ この届け先の特記事項\n"+dnote+"\n\n"):"")+"届け先: "+name+"\n"
+  let msg="【西濃 送り状発行】🟢本番\n\n"+(KAKOU_NOTE?("⚠️ メモ: "+KAKOU_NOTE+"\n\n"):"")+mism+(unote?("🚨 "+unote+"\n\n"):"")+(dnote?("⚠️ この届け先の特記事項\n"+dnote+"\n\n"):"")+"届け先: "+name+"\n"
     +(tome?("止め: "+branch+"支店（住所は支店に自動設定）"):("〒"+zip+" "+addr))
     +"\nTEL: "+tel+"\n個口: "+kosu+"個口 / "+kg+"kg / "+(motochaku==="3"?"着払":"元払");
   if(sName) msg+="\n荷送人: "+sName+"（請求は林材木店）";
@@ -1873,7 +1884,8 @@ async function issueLinked(wantPrint){ // order-desk連携発行: seinoissue(番
   const _chaku=(_yuso==="02"&&_hd)?(_hd.slice(5).replace("-","/")+"（"+(_HK[_kbn]||"")+"）"):"";
   if(!(await telDigitsOk($("#f-tel").value))) return;                        // 電話番号の桁数（9〜11桁）が合わなければ確定前に止める
   const _mism=destMismatchLines($("#f-zip").value,$("#f-addr").value,$("#f-tel").value,$("#f-tome").checked);
-  if(!(await uiConfirmText("【西濃 送り状発行】🟢本番・order-desk連携\n\n"+(KAKOU_NOTE?("⚠️ メモ: "+KAKOU_NOTE+"\n\n"):"")+_mism+"注文: "+c.customer+" 様\n個口: "+($("#f-kosu").value||"")+"個口\n出荷予定日: "+$("#f-date").value+(_chaku?("\n着日指定: "+_chaku):"")+(String($("#f-kiji2").value||"").trim()?("\n記事: "+$("#f-kiji1").value+" "+$("#f-kiji2").value):"")+"\n\norder-deskの登録情報（届け先・法人名）で出荷登録し、"+(wantPrint===false?"登録のみ行います。":"会社PCで自動印刷します。")+"\n送り状番号はorder-deskにも保存されます。よろしいですか？","発行する"))){ toast("発行を中止しました"); return; }
+  const _unote=urbanNoteFor($("#f-addr").value,$("#f-tome").checked);   // 4m×都市部ビル宛て → 西濃へ配達可否を事前確認したか
+  if(!(await uiConfirmText("【西濃 送り状発行】🟢本番・order-desk連携\n\n"+(KAKOU_NOTE?("⚠️ メモ: "+KAKOU_NOTE+"\n\n"):"")+_mism+(_unote?("🚨 "+_unote+"\n\n"):"")+"注文: "+c.customer+" 様\n個口: "+($("#f-kosu").value||"")+"個口\n出荷予定日: "+$("#f-date").value+(_chaku?("\n着日指定: "+_chaku):"")+(String($("#f-kiji2").value||"").trim()?("\n記事: "+$("#f-kiji1").value+" "+$("#f-kiji2").value):"")+"\n\norder-deskの登録情報（届け先・法人名）で出荷登録し、"+(wantPrint===false?"登録のみ行います。":"会社PCで自動印刷します。")+"\n送り状番号はorder-deskにも保存されます。よろしいですか？","発行する"))){ toast("発行を中止しました"); return; }
   $("#btn-go").disabled=true; $("#btn-go2").disabled=true; toast("西濃へ登録中…");
   try{
     let _u=API_URL+"?action=seinoissue&id="+encodeURIComponent(c.id)+(wantPrint===false?"&print=0":"")+"&date="+encodeURIComponent($("#f-date").value.replace(/-/g,""));
