@@ -534,7 +534,7 @@ const FAXDESK_URL="https://script.google.com/macros/s/AKfycbxQCf2HVfLjUAzOYXJHzz
 let CRED=null;
 let PARTNERS=null;
 const $=s=>document.querySelector(s);
-function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2600);}
+function toast(m,ms){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),ms||2600);}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 // 起動高速化(SWR): 前回データをlocalStorageに保持→開いた瞬間に即描画し、裏でGAS最新を取得して差し替え
 function swrGet(k,maxAgeMs){ try{ const c=JSON.parse(localStorage.getItem(k)||"null"); if(c&&c.j&&(Date.now()-(c.at||0))<maxAgeMs) return c.j; }catch(e){} return null; }
@@ -705,7 +705,7 @@ async function loadNouhinPending(){
   }catch(e){ NOUHIN_LOADING=false; }
 }
 async function nouhinDone(id){
-  if(!confirm("この出荷の納品書を「作成済み」にしますか？\n（納品書ツールを使わず手書き等で作成した場合の消し込み用）")) return;
+  if(!await uiConfirmText("この出荷の納品書を「作成済み」にしますか？\n（納品書ツールを使わず手書き等で作成した場合の消し込み用）")) return;
   try{ const j=await gasGet2("nouhinmarkdone","id="+encodeURIComponent(id)); toast(j.ok?"✅ 作成済みにしました":"失敗: "+(j.error||"")); }catch(e){ toast("通信エラー"); }
   loadNouhinPending();
 }
@@ -737,9 +737,18 @@ async function loadToday(){
   }
   try{
     const j=await gasGet("seinotoday");                   // 裏で最新取得→差分だけ反映
-    if(j.ok){ TODAY_CACHE=j; swrSet("seinodesk_today",j); renderToday(j); }
-    else if(!TODAY_CACHE){ el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
-  }catch(e){ if(!TODAY_CACHE) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
+    if(j.ok){ TODAY_CACHE=j; TODAY_STALE=false; swrSet("seinodesk_today",j); renderToday(j); }
+    else { todayStale_(el, j.error||"取得失敗"); }
+  }catch(e){ todayStale_(el, "通信エラー"); }
+}
+// 本日一覧の最新化に失敗＝前回分を表示中。黙って旧データを出さず赤帯で示し、締めはこの状態では実行しない（2026-09-18）
+var TODAY_STALE=false;
+function todayStale_(el, why){
+  TODAY_STALE=true;
+  const hm=new Date().toTimeString().slice(0,5);
+  const band='<div class="hint" style="padding:8px 10px;color:#c0392b;background:#fff0ee;border:1px solid #f3b7ae;border-radius:8px;margin-bottom:8px">⚠ 本日一覧の最新を取得できませんでした（'+esc(String(why))+' '+hm+'）。'+(TODAY_CACHE?'前回取得分を表示中です。「更新」で再取得してください。':'')+'</div>';
+  if(!TODAY_CACHE){ el.innerHTML=band; return; }
+  if(!el.querySelector('.today-stale')){ const d=document.createElement('div'); d.className='today-stale'; d.innerHTML=band; el.prepend(d); }
 }
 // ---- 確認モーダル（スクロールなし・内容に合わせて縮む） ----
 // ブラウザが「このページでダイアログを表示しない」状態だと native confirm() は黙って false を返し「押しても何も起きない」になる（2026-09-15 岸川様7口で発生）
@@ -748,6 +757,7 @@ function uiAlert(html, okLabel){   // OKだけのモーダル。失敗理由は2
   const c=$("#confirm-cancel"); c.style.display="none";
   return uiConfirm(html, okLabel||"閉じる").then(v=>{ c.style.display=""; return v; });
 }
+function uiAlertText(text, okLabel){ return uiAlert('<div style="white-space:pre-wrap;font-size:14px;line-height:1.55">'+esc(String(text||""))+'</div>', okLabel); }   // native alert の置換用（2026-09-18）
 function uiConfirmText(text, okLabel){ return uiConfirm('<div style="white-space:pre-wrap;font-size:14px;line-height:1.55">'+esc(String(text||""))+'</div>', okLabel); }
 function uiConfirm(html, okLabel){
   return new Promise(res=>{
@@ -808,6 +818,7 @@ function shimeCheckHtml(){
 }
 function shimeAcked(){ const c=document.getElementById("shime-ack"); if(c&&c.checked) return true; toast("「内容を確認しました」にチェックを入れてください"); return false; }
 async function shimeAll(){
+  if(TODAY_STALE){ await loadToday(); if(TODAY_STALE){ await uiAlertText("本日一覧の最新を取得できていないため、締めを実行しませんでした。\n（古い件数・個口で締めるのを防ぐため）\n通信を確認して「更新」してから、もう一度実行してください。"); return; } }
   const t=TODAY_CACHE||{count:0,kosu:0,weightKg:0};
   const ok=await uiConfirm(
     '<div style="font-size:15px;font-weight:700;margin-bottom:10px">🏁 出荷の締めを実行します</div>'
@@ -822,7 +833,7 @@ async function shimeAll(){
     if(await voidPendingBlock(p1)) return;   // 取消した送り状がKM2に残っている→理由を出して止める（2026-09-14: 一括だけ理由なしの「失敗」だった）
     const p2=await gasGet("seinoefax");
     const p3=await gasGet2("seinopickupqueue","biko="+encodeURIComponent(pickupBikoParam()));
-    alert("🖨 印刷: "+(p1.ok?"キュー済（十数秒で会社PCから出ます）":("失敗（"+(p1.message||p1.error||"")+"）"))
+    uiAlertText("🖨 印刷: "+(p1.ok?"キュー済（十数秒で会社PCから出ます）":("失敗（"+(p1.message||p1.error||"")+"）"))
       +"\n📠 FAX（荷主控え）: "+(p2.queued?"キュー済（1分以内に送信）":("失敗（"+(p2.error||"")+"）"))
       +"\n🚛 集荷: "+(p3.queued?("依頼キュー済 "+p3.kosu+"個口・"+p3.weightKg+"kg（1分以内に送信）"):("実行なし（"+(p3.error||"対象なし")+"）")));
     loadToday();             // 締めステータス（⏳処理中→✅済み）を反映
@@ -838,7 +849,12 @@ async function voidPendingBlock(j){
     +'このまま進めると、実在しない荷物が出荷一覧表・FAX・集荷個口に混ざります。<br>'
     +'<b>先にKM2画面で削除してください。</b><br><br>'
     +'削除が済んでいる場合は「OK」を押すと解除します（次回から警告しません）。',"OK（KM2で削除しました）");
-  if(ok){ for(const n of nos){ try{ await gasGet2("seinovoidclear","no="+encodeURIComponent(n)); }catch(e){} } toast("解除しました。もう一度実行してください"); }
+  if(ok){
+    const ng=[];
+    for(const n of nos){ try{ const r=await gasGet2("seinovoidclear","no="+encodeURIComponent(n)); if(!r||!r.ok) ng.push(n+"（"+((r&&(r.error||r.message))||"失敗")+"）"); }catch(e){ ng.push(n+"（通信エラー）"); } }
+    if(ng.length) await uiAlertText("解除できなかった送り状があります:\n"+ng.join("\n")+"\n\nもう一度お試しください。");   // 失敗を握り潰さない（2026-09-18）
+    else toast("解除しました。もう一度実行してください");
+  }
   return true;
 }
 async function shimePrint(){
@@ -902,7 +918,7 @@ async function shipPend(action){
   try{
     const j=await gasGet2(action);
     toast(j.ok?("✅ "+label+" 発送処理 "+(j.done?j.done.length:0)+"件"+((j.fail&&j.fail.length)?("／失敗"+j.fail.length+"件"):"完了（受注は発送済に）")):"失敗");
-    if(j.fail&&j.fail.length) alert("処理できなかった注文があります:\n"+j.fail.map(f=>"・"+f.customer+"（"+(f.mall==="yahoo"?"ヤフー":"楽天")+"）"+(f.detail||"")).join("\n"));
+    if(j.fail&&j.fail.length) uiAlertText("処理できなかった注文があります:\n"+j.fail.map(f=>"・"+f.customer+"（"+(f.mall==="yahoo"?"ヤフー":"楽天")+"）"+(f.detail||"")).join("\n"));
   }catch(e){ toast("通信エラー"); }
   loadToday();
 }
@@ -1401,7 +1417,7 @@ async function draftDoneCleanup(){   // 本登録できたら仮登録は役目�
   if(d&&d.id){ try{ await gasGet2("seinodraftdel","id="+encodeURIComponent(d.id)); }catch(e){} DRAFT_CACHE=null; try{ localStorage.removeItem("seinodesk_drafts"); }catch(e){} loadDraftTab(1); }
 }
 async function draftDelete(id,label){
-  if(!confirm("仮登録「"+label+"」を削除しますか？（西濃には何も登録されていません）")) return;
+  if(!await uiConfirmText("仮登録「"+label+"」を削除しますか？（西濃には何も登録されていません）")) return;
   try{ const j=await gasGet2("seinodraftdel","id="+encodeURIComponent(id)); toast(j.ok?"削除しました":"削除できませんでした"); }catch(e){ toast("通信エラー"); }
   if(CUR_DRAFT&&CUR_DRAFT.id===id) draftClear(false);
   loadDraftTab(1);
@@ -1424,6 +1440,8 @@ async function loadDraftTab(force){
   try{
     const [a,b,c]=await Promise.all([gasGet("seinocandidates").catch(()=>({})), gasGet("seinokakoupending").catch(()=>({})), gasGet("seinodraftlist").catch(()=>({})), loadPartners(false).catch(()=>{})]);
     if(!a.ok && !b.ok && !c.ok){ if(!DRAFT_CACHE && el) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; return; }
+    { const ng=[]; if(!a.ok) ng.push("楽天/ヤフー注文"); if(!b.ok) ng.push("加工予定表"); if(!c.ok) ng.push("仮登録");
+      if(ng.length){ toast("⚠ "+ng.join("・")+" の取得に失敗（その分は表示されていません）。「更新」で再取得してください", 6000); if(DRAFT_CACHE) return; } }   // 一部だけ失敗→「候補なし」に見せない（2026-09-18）
     const cands=(a.list||[]).filter(x=>x.mall==="rakuten"||x.mall==="yahoo");   // 市場(FAX/メール取込)は個口1/1kgのダミー＝予定表の行の方で出す
     const kak=(b.rows||[]);
     // 注文由来(od_)の予定表行は注文候補に寄せて1枚にする（束数・出荷日・着日を候補カードに併記）
@@ -1622,7 +1640,7 @@ async function choiceHide(){ // 西濃ツールで非表示（マスタには残
 }
 async function choiceDelete(){ // マスタから完全削除
   const name=PT_CHOICE; if(!name) return;
-  if(!confirm("「"+name+"」を取引先マスタから完全に削除しますか？\n\nFAXデスクの宛名判定含む全ツールから消えます。")) return;
+  if(!await uiConfirmText("「"+name+"」を取引先マスタから完全に削除しますか？\n\nFAXデスクの宛名判定含む全ツールから消えます。")) return;
   closeChoice(); toast("削除中…");
   try{
     const r=await fetch(FAXDESK_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
