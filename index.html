@@ -807,7 +807,21 @@ async function telDigitsOk(tel){
   return uiConfirmText("電話番号 "+tel+" は桁数が合いません（"+t.length+"桁）。このまま登録しますか？","このまま登録");
 }
 function applyKakou(n,uid){ $("#f-kosu").value=String(n); if($("#f-kosu").value!==String(n)){ toast("個口 "+n+" はプルダウンにありません"); return; } KAKOU_UID=uid||""; autoWeight(); toast("個口 "+n+"・重量 "+$("#f-kg").value+"kg を転記しました（加工予定表と紐付け）"); }
-function gasGet(action){ return fetch(API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass)).then(r=>r.json()); }
+// GAS呼び出し（再試行つき・2026-09-18）: order-desk GASが断続的にHTTP 404を返す日があり（9/18は76回・9/17は2回）、
+// 1回失敗しただけで「通信エラー」→締めが止まっていた。404/429/5xx/通信断/JSON不正は2秒・4秒あけて最大3回まで再試行する。
+async function gasFetch(u){
+  let last;
+  for(let a=1;a<=3;a++){
+    try{
+      const r=await fetch(u);
+      if(r.status===404||r.status===429||r.status>=500){ last=new Error("HTTP "+r.status); }
+      else return await r.json();
+    }catch(e){ last=e; }
+    if(a<3) await new Promise(res=>setTimeout(res,2000*a));
+  }
+  throw last;
+}
+function gasGet(action){ return gasFetch(API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass)); }
 // ---- 締め前の内容確認（出荷一覧表の印刷/FAXで西濃KM2側が「出荷確定」になり修正・削除ができなくなる）----
 function shimeCheckHtml(){
   const t=TODAY_CACHE||{list:[]};
@@ -827,18 +841,34 @@ async function shimeAll(){
     +'<div>・出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷<br>・出荷一覧表（荷主控え）を西濃袋井支店へFAX送信（実FAX）<br>・西濃へWeb集荷依頼（16時集荷）</div>');
   if(!ok) return;
   if(!shimeAcked()) return;
+  await shimeRun({print:true,fax:true,pickup:true});
+}
+// 一括の実体（2026-09-18）: 以前は3処理を1つのtryで順に呼び、1回の通信エラーで全部止まり「通信エラー」トースト2.6秒だけ＝
+// 何がどこまで登録されたか分からなかった（9/18 GAS 404で発生・本人は手動で全部やり直し）。
+// → 各処理を独立に実行し、結果を消えないモーダルで出す。通信エラーだった処理だけ「もう一度」で再実行できる。
+async function shimeRun(want){
   toast("実行中…");
-  try{
-    const p1=await gasGet("seinolistprint");
-    if(await voidPendingBlock(p1)) return;   // 取消した送り状がKM2に残っている→理由を出して止める（2026-09-14: 一括だけ理由なしの「失敗」だった）
-    const p2=await gasGet("seinoefax");
-    const p3=await gasGet2("seinopickupqueue","biko="+encodeURIComponent(pickupBikoParam()));
-    uiAlertText("🖨 印刷: "+(p1.ok?"キュー済（十数秒で会社PCから出ます）":("失敗（"+(p1.message||p1.error||"")+"）"))
-      +"\n📠 FAX（荷主控え）: "+(p2.queued?"キュー済（1分以内に送信）":("失敗（"+(p2.error||"")+"）"))
-      +"\n🚛 集荷: "+(p3.queued?("依頼キュー済 "+p3.kosu+"個口・"+p3.weightKg+"kg（1分以内に送信）"):("実行なし（"+(p3.error||"対象なし")+"）")));
-    loadToday();             // 締めステータス（⏳処理中→✅済み）を反映
-    notifyReminderPopup();   // 楽天/ヤフー/市場の発送通知リマインド
-  }catch(e){ toast("通信エラー"); }
+  const res={};
+  const comm=e=>({ok:false,queued:false,error:"通信エラー（"+((e&&e.message)||"")+"・3回再試行済み）",_comm:true});
+  if(want.print){ try{ res.print=await gasGet("seinolistprint"); if(await voidPendingBlock(res.print)) return; }catch(e){ res.print=comm(e); } }
+  if(want.fax){ try{ res.fax=await gasGet("seinoefax"); if(await voidPendingBlock(res.fax)) return; }catch(e){ res.fax=comm(e); } }
+  if(want.pickup){ try{ res.pickup=await gasGet2("seinopickupqueue","biko="+encodeURIComponent(pickupBikoParam())); if(await voidPendingBlock(res.pickup)) return; }catch(e){ res.pickup=comm(e); } }
+  const p1=res.print, p2=res.fax, p3=res.pickup;
+  const lines=[];
+  if(p1) lines.push("🖨 印刷: "+(p1.ok?"キュー済（十数秒で会社PCから出ます）":("失敗（"+(p1.message||p1.error||"")+"）")));
+  if(p2) lines.push("📠 FAX（荷主控え）: "+(p2.queued?"キュー済（1分以内に送信）":("失敗（"+(p2.message||p2.error||"")+"）")));
+  if(p3) lines.push("🚛 集荷: "+(p3.queued?("依頼キュー済 "+p3.kosu+"個口・"+p3.weightKg+"kg（1分以内に送信）"):("実行なし（"+(p3.message||p3.error||"対象なし")+"）")));
+  const again={print:!!(p1&&p1._comm), fax:!!(p2&&p2._comm), pickup:!!(p3&&p3._comm)};
+  const anyAgain=again.print||again.fax||again.pickup;
+  loadToday();             // 締めステータス（⏳処理中→✅済み）を反映
+  if(anyAgain){
+    const retry=await uiConfirm('<div style="white-space:pre-wrap;font-size:14px;line-height:1.55">'+esc(lines.join("\n"))+'</div>'
+      +'<div style="margin-top:10px;color:#c0392b;font-size:13px">通信エラーになった処理があります。成功した処理は登録済みなので、失敗した分だけもう一度実行できます。</div>',"失敗した分だけもう一度");
+    if(retry) return shimeRun(again);
+    return;
+  }
+  await uiAlertText(lines.join("\n"));
+  notifyReminderPopup();   // 楽天/ヤフー/市場の発送通知リマインド
 }
 // 取消した送り状がKM2に残っている間は締め(印刷/FAX/集荷)を止める。KM2で消したら「削除しました」で解除。
 async function voidPendingBlock(j){
@@ -861,13 +891,13 @@ async function shimePrint(){
   if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">🖨 出荷一覧表を印刷</div>'+shimeCheckHtml()+'当日の出荷一覧表（ドライバー控え＋受領書の2枚）を会社PCで印刷します。<br>よろしいですか？')) return;
   if(!shimeAcked()) return;
   toast("印刷キューに登録中…");
-  try{ const j=await gasGet("seinolistprint"); if(await voidPendingBlock(j)) return; toast(j.ok?"✅ 十数秒で会社PCから印刷されます（出なければもう一度このボタン。自動再印刷はしません）":("失敗（"+(j.message||j.error||"")+"）")); loadToday(); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
+  try{ const j=await gasGet("seinolistprint"); if(await voidPendingBlock(j)) return; toast(j.ok?"✅ 十数秒で会社PCから印刷されます（出なければもう一度このボタン。自動再印刷はしません）":("失敗（"+(j.message||j.error||"")+"）")); loadToday(); notifyReminderPopup(); }catch(e){ await uiAlertText("通信エラーで登録できませんでした（3回再試行済み）。\nもう一度このボタンを押してください。"); }
 }
 async function shimeFax(){
   if(!await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">📠 出荷一覧表をFAX</div>'+shimeCheckHtml()+'当日の出荷一覧表（<b>荷主控え</b>）を西濃袋井支店へFAX送信します（実FAX）。<br>よろしいですか？')) return;
   if(!shimeAcked()) return;
   toast("FAX依頼を登録中…");
-  try{ const j=await gasGet("seinoefax"); if(await voidPendingBlock(j)) return; toast(j.queued?"✅ 1分以内に荷主控えをFAX送信します":("失敗（"+(j.message||j.error||"")+"）")); loadToday(); }catch(e){ toast("通信エラー"); }
+  try{ const j=await gasGet("seinoefax"); if(await voidPendingBlock(j)) return; toast(j.queued?"✅ 1分以内に荷主控えをFAX送信します":("失敗（"+(j.message||j.error||"")+"）")); loadToday(); }catch(e){ await uiAlertText("通信エラーで登録できませんでした（3回再試行済み）。\nもう一度このボタンを押してください。"); }
 }
 async function shimePickup(){
   const t=TODAY_CACHE||{kosu:0,weightKg:0};
@@ -877,10 +907,10 @@ async function shimePickup(){
     +'<div style="background:#f0f7f3;border-radius:9px;padding:10px 12px;margin-bottom:10px">合計 <b>'+t.kosu+'束</b>（'+t.kosu+'個口）／総重量 <b>'+t.weightKg+'kg</b><br><span style="color:var(--muted);font-size:12px">備考: '+esc(bk||pickupAutoBiko(t))+(bk?'（編集済み）':'')+'</span></div>'
     +'本日16時の集荷で依頼します。よろしいですか？<br><span style="color:var(--muted);font-size:12px">※16時を過ぎている場合は当日17時、当日枠が無ければ翌営業日16時になります</span>')) return;
   toast("集荷依頼を登録中…");
-  try{ const j=await gasGet2("seinopickupqueue","biko="+encodeURIComponent(bk)); if(await voidPendingBlock(j)) return; toast(j.queued?("✅ 依頼キュー済 "+j.kosu+"個口・"+j.weightKg+"kg（1分以内に送信）"):("実行なし（"+(j.message||j.error||"対象なし")+"）")); loadToday(); notifyReminderPopup(); }catch(e){ toast("通信エラー"); }
+  try{ const j=await gasGet2("seinopickupqueue","biko="+encodeURIComponent(bk)); if(await voidPendingBlock(j)) return; toast(j.queued?("✅ 依頼キュー済 "+j.kosu+"個口・"+j.weightKg+"kg（1分以内に送信）"):("実行なし（"+(j.message||j.error||"対象なし")+"）")); loadToday(); notifyReminderPopup(); }catch(e){ await uiAlertText("通信エラーで登録できませんでした（3回再試行済み）。\nもう一度このボタンを押してください。"); }
 }
 // ---- 発送通知リマインド（楽天/ヤフー/市場）ポップアップ ----
-function gasGet2(action, extra){ let u=API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass); if(extra) u+="&"+extra; return fetch(u).then(r=>r.json()); }
+function gasGet2(action, extra){ let u=API_URL+"?action="+action+"&email="+encodeURIComponent(CRED.email)+"&pass="+encodeURIComponent(CRED.pass); if(extra) u+="&"+extra; return gasFetch(u); }
 async function notifyReminderPopup(){
   let st; try{ st=await gasGet2("seinonotifystatus"); }catch(e){ return; }
   if(!st||!st.ok||!st.count) return;   // 全部通知済み or 取得不可→ポップアップ出さない
