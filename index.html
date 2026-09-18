@@ -160,6 +160,19 @@ button.primary:disabled{opacity:.5;cursor:default}
       🔗 注文連携中: <b id="linked-name"></b>
       <span class="hint">order-deskの登録情報で発行され、送り状番号がorder-deskにも書き戻ります（自動印刷あり）</span>
       <a href="#" onclick="unlink();return false" style="margin-left:8px;color:var(--warn)">解除</a>
+      <!-- 法人注文なのに法人名・法人住所が未登録＝GASの法人ガード(corpNameRequired)で発行が止まる。ここで登録して発行できる状態にする（2026-09-18） -->
+      <div id="linked-corp" style="display:none;margin-top:8px;background:#fff4e5;border:1px solid #f0b060;border-radius:8px;padding:8px 10px">
+        <div style="font-weight:700;color:#c0392b;margin-bottom:6px">⚠️ 法人のお客様ですが法人名・法人住所が未登録です。このままでは<u>発行できません</u>（宛名は法人名・法人住所で出す決まり）</div>
+        <div style="display:grid;grid-template-columns:90px 1fr;gap:5px 8px;align-items:center;font-size:13px">
+          <label for="lc-name">法人名</label><input id="lc-name" placeholder="例: 株式会社◯◯（略さず正式名）" maxlength="40">
+          <label for="lc-zip">法人の〒</label><input id="lc-zip" placeholder="1234567" maxlength="8" style="max-width:140px">
+          <label for="lc-addr">法人の住所</label><input id="lc-addr" placeholder="都道府県から番地・ビル名まで" maxlength="60">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:7px;flex-wrap:wrap">
+          <button type="button" onclick="saveLinkedCorp()" style="background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">💾 法人情報を保存して発行できる状態にする</button>
+          <span class="hint" style="margin:0">order-deskの注文にも保存されます（ドロワーで登録したのと同じ）。〒・住所は注文の配送先を初期値にしています＝法人住所と違えば直してください</span>
+        </div>
+      </div>
     </div>
     <div id="kakou-banner" style="display:none;background:#fff3e0;border-left:4px solid #e65100;border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:10px">
       📋 加工予定表から: <b id="kakou-label"></b>　<span id="kakou-src" class="hint" style="margin:0"></span>
@@ -731,6 +744,10 @@ async function loadToday(){
 // ---- 確認モーダル（スクロールなし・内容に合わせて縮む） ----
 // ブラウザが「このページでダイアログを表示しない」状態だと native confirm() は黙って false を返し「押しても何も起きない」になる（2026-09-15 岸川様7口で発生）
 // → 発行系の最終確認は画面内モーダル(uiConfirm)で出す。改行付きの素のテキストを渡す
+function uiAlert(html, okLabel){   // OKだけのモーダル。失敗理由は2.6秒のトーストだと読めないので、こちらで出す（2026-09-18）
+  const c=$("#confirm-cancel"); c.style.display="none";
+  return uiConfirm(html, okLabel||"閉じる").then(v=>{ c.style.display=""; return v; });
+}
 function uiConfirmText(text, okLabel){ return uiConfirm('<div style="white-space:pre-wrap;font-size:14px;line-height:1.55">'+esc(String(text||""))+'</div>', okLabel); }
 function uiConfirm(html, okLabel){
   return new Promise(res=>{
@@ -1171,8 +1188,10 @@ function candDispName(c){ const corp=(String(c.custType||"").indexOf("法人")>=
 function pickCand(s){
   const c=JSON.parse(s);
   const isCorp=(String(c.custType||"").indexOf("法人")>=0 && c.corpName);
-  LINKED={id:c.id, customer:(isCorp?corpAbbrev(c.corpName):c.customer), orderCustomer:c.customer,
+  const corpPending=(String(c.custType||"").indexOf("法人")>=0 && !c.corpName);   // 法人なのに法人名未登録＝GASの法人ガードで発行が止まる
+  LINKED={id:c.id, customer:(isCorp?corpAbbrev(c.corpName):c.customer), orderCustomer:c.customer, custType:String(c.custType||""), corpPending:corpPending,
           orig:{tel:String(c.tel||"").replace(/[^0-9]/g,""), zip:String((isCorp&&c.corpZip)?c.corpZip:(c.zip||"")).replace(/[^0-9]/g,""), addr:String((isCorp&&c.corpAddr)?c.corpAddr:(c.addr||""))}};
+  showLinkedCorp(corpPending, c);
   $("#f-name").value=(isCorp?corpAbbrev(c.corpName):(c.customer||"")).slice(0,30);
   $("#f-zip").value=((isCorp&&c.corpZip)?c.corpZip:(c.zip||"")).replace(/[^0-9]/g,"");
   $("#f-addr").value=(isCorp&&c.corpAddr)?c.corpAddr:(c.addr||"");
@@ -1188,9 +1207,54 @@ function pickCand(s){
   $("#cand-list").style.display="none";
   $("#linked-name").textContent=candDispName(c);
   $("#linked-banner").style.display="block";
-  toast(isCorp?"転記しました（法人注文＝宛名は法人名 "+corpAbbrev(c.corpName)+"）":"転記しました。内容を確認して発行してください");
+  toast(corpPending?"⚠️ 法人名・法人住所が未登録です。上の欄で登録してから発行してください":(isCorp?"転記しました（法人注文＝宛名は法人名 "+corpAbbrev(c.corpName)+"）":"転記しました。内容を確認して発行してください"));
 }
-function unlink(){ LINKED=null; $("#linked-banner").style.display="none"; toast("連携を解除しました（手入力の内容で発行されます）"); }
+function unlink(){ LINKED=null; $("#linked-banner").style.display="none"; $("#linked-corp").style.display="none"; toast("連携を解除しました（手入力の内容で発行されます）"); }
+// 法人未登録ブロックの表示。初期値=注文者名に法人格が含まれていればそれを法人名に・〒住所は注文の配送先
+function showLinkedCorp(show, c){
+  const box=$("#linked-corp"); if(!box) return;
+  box.style.display=show?"block":"none";
+  if(!show) return;
+  c=c||{};
+  const nm=String(c.customer||""), hasCorp=/株式会社|有限会社|合同会社|合資会社|㈱|㈲|\(株\)|\(有\)/.test(nm);
+  if(!$("#lc-name").value) $("#lc-name").value=hasCorp?nm.replace(/㈱/g,"株式会社").replace(/㈲/g,"有限会社").replace(/\(株\)/g,"株式会社").replace(/\(有\)/g,"有限会社").replace(/\s+/g," ").trim():"";
+  if(!$("#lc-zip").value) $("#lc-zip").value=String(c.zip||"").replace(/[^0-9]/g,"");
+  if(!$("#lc-addr").value) $("#lc-addr").value=String(c.addr||"");
+}
+// 法人名・法人住所をorder-deskの注文に保存（GAS action=order・ドロワーの保存と同じ経路）→連携情報を法人名義に差し替える
+async function saveLinkedCorp(){
+  if(!LINKED){ toast("注文連携中ではありません"); return; }
+  const name=$("#lc-name").value.replace(/\s+/g," ").trim(), zip=$("#lc-zip").value.replace(/[^0-9]/g,""), addr=$("#lc-addr").value.trim();
+  if(!name){ toast("法人名を入れてください"); $("#lc-name").focus(); return; }
+  if(zip.length!==7){ toast("法人の〒は7桁で入れてください"); $("#lc-zip").focus(); return; }
+  if(!addr){ toast("法人の住所を入れてください"); $("#lc-addr").focus(); return; }
+  if(!(await uiConfirm('<div style="font-size:15px;font-weight:700;margin-bottom:8px">💾 法人情報を保存</div>注文: '+esc(LINKED.orderCustomer||LINKED.customer)+' 様<br>法人名: <b>'+esc(name)+'</b><br>〒'+esc(zip)+' '+esc(addr)+'<br><br>送り状の宛名は「'+esc(corpAbbrev(name))+'」、届け先はこの住所になります。<br>order-deskの注文にも保存します。よろしいですか？',"保存する"))) return;
+  toast("保存中…");
+  try{
+    const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({email:CRED.email,pass:CRED.pass,action:"order",id:LINKED.id,corpName:name,corpZip:zip,corpAddr:addr})});
+    const j=await r.json();
+    if(!j.ok){ await uiAlert('<div style="font-size:15px;font-weight:700;margin-bottom:8px;color:#c0392b">保存できませんでした</div>'+esc(j.error||j.message||"")); return; }
+    LINKED.customer=corpAbbrev(name); LINKED.corpPending=false; LINKED.orig.zip=zip; LINKED.orig.addr=addr;
+    $("#f-name").value=corpAbbrev(name).slice(0,30); $("#f-zip").value=zip; $("#f-addr").value=addr;
+    setDestSrc("法人情報（"+corpAbbrev(name)+"）", zip, addr, $("#f-tel").value);
+    $("#linked-name").textContent=corpAbbrev(name)+"（注文者 "+(LINKED.orderCustomer||"")+" 様）";
+    showLinkedCorp(false);
+    DRAFT_CACHE=null; try{ localStorage.removeItem("seinodesk_drafts"); }catch(e){} loadDraftTab(1);   // 候補カードの「法人名 未確認」も消す
+    toast("✅ 法人情報を保存しました。内容を確認して出荷登録してください");
+  }catch(e){ toast("通信エラー"); }
+}
+// GASの失敗理由を人が読める日本語にして残るモーダルで出す（トーストは2.6秒で消えて「押しても何も起きない」に見える）
+async function showIssueError(j, linked){
+  const code=String((j&&j.error)||""), msg=String((j&&j.message)||"");
+  let html='<div style="font-size:15px;font-weight:700;margin-bottom:8px;color:#c0392b">❌ 発行できませんでした</div>';
+  if(code==="corpNameRequired"||code==="corpAddrRequired"){
+    html+='法人のお客様ですが<b>'+(code==="corpNameRequired"?"法人名":"法人住所")+'が未登録</b>のため、西濃には登録していません。<br>連携バナーの「法人名・法人の〒・住所」を入れて「💾 法人情報を保存」→もう一度「出荷登録」を押してください。';
+    if(linked&&LINKED){ LINKED.corpPending=true; showLinkedCorp(true,{customer:LINKED.orderCustomer||LINKED.customer,zip:$("#f-zip").value,addr:$("#f-addr").value}); }
+  } else if(code==="unauthorized"){ html+='ログインの期限切れです。ページを再読み込みしてログインし直してください。'; }
+  else if(code==="出荷登録失敗"){ html+='西濃のAPIが登録を受け付けませんでした。<br><span style="font-size:12px;color:var(--muted)">'+esc(String(j.raw||j.code||""))+'</span><br>届け先・〒・電話・出荷予定日を見直してください。'; }
+  else { html+=esc(msg||code||"原因不明")+(j&&j.raw?('<br><span style="font-size:12px;color:var(--muted)">'+esc(String(j.raw))+'</span>'):''); }
+  await uiAlert(html);
+}
 
 // ===== 仮登録・候補タブ／加工予定表からの受け取り（2026-09-11） =====
 // 仮登録=フォームの内容をGAS(SeinoDraft)に保存するだけ。西濃には送らない（本登録するとKM2から消せないため、確認してから本登録する）
@@ -1398,9 +1462,9 @@ function renderDraftTab(d){
       +'<div class="meta">'+esc((c.zip?("〒"+c.zip+" "):"")+(c.addr||"")+(c.tel?("　TEL "+c.tel):""))+'</div>'
       +'<div class="meta">'+esc((c.items||[]).map(x=>x.name.replace(/【.*?】|\s+/g," ").trim().slice(0,28)+"×"+x.qty).join("／"))+'</div>'
       +'<div class="meta">注文の計算: '+c.kosu+'個口・'+c.weightKg+'kg（'+esc([c.kiji1,c.kiji2].filter(Boolean).join(" "))+'）'+(c.deliveryDate?('　お客様の着日希望 <b>'+fd(c.deliveryDate)+'</b>'):'')+'</div>'
-      +(corpNg?'<div class="meta" style="color:var(--warn);font-weight:700">⚠️ 法人のお客様ですが法人名・法人住所が未登録です。order-deskのドロワーで登録してから発行してください（宛名は法人名で出ます）</div>':'')
+      +(corpNg?'<div class="meta" style="color:var(--warn);font-weight:700">⚠️ 法人のお客様ですが法人名・法人住所が未登録です＝このままでは発行できません。「法人情報を登録して発行へ」で法人名・住所を入れてから発行してください（宛名は法人名で出ます）</div>':'')
       +(k?('<div class="meta" style="color:#e65100;font-weight:700">📋 加工予定表: '+k.planned+'口'+(k.length?('・'+Math.round(Number(k.length)/100)/10+'m'):'')+(k.grade?('・'+esc(k.grade)):'')+(k.due?('・出荷 '+fd(k.due)):'')+(k.chaku?('・着日 '+fd(k.chaku)+' '+esc(k.chakuKbn||"")):'')+(k.actual&&k.actual!=='-'?('　<span style="color:#c0392b">'+esc(k.actual)+'中</span>'):'')+(k.remark?('　<span style="color:#555;font-weight:400">'+esc(k.remark)+'</span>'):'')+'</div>'):'<div class="meta" style="color:#999">📋 加工予定表に西濃の行なし（束数は注文の計算値）</div>')
-      +'</div><div class="dbtns"><button style="background:var(--accent);color:#fff" onclick="candOpen('+i+')">✏️ 確認して発行へ</button></div></div>'; };
+      +'</div><div class="dbtns"><button style="background:'+(corpNg?'#c0392b':'var(--accent)')+';color:#fff" onclick="candOpen('+i+')">'+(corpNg?'✏️ 法人情報を登録して発行へ':'✏️ 確認して発行へ')+'</button></div></div>'; };
   // 予定表(手入力)行の届け先: ①発注書(order-desk市場取込)の納入先 ②取引先マスタ ③なし
   const kakouAddrLine=(r)=>{ const h=r.hacchu, dv=h&&h.deliver;
     const hsrc=h?('発注書'+(h.date?('（'+fd(h.date)+(h.src==="fax"?" FAX":" メール")+(dv&&dv.person?('・担当 '+esc(dv.person)):'')+(dv&&dv.no?('・No.'+esc(dv.no)):'')+'）'):'')+(h.fileUrl?(' <a href="'+esc(h.fileUrl)+'" target="_blank" style="font-weight:400">原本</a>'):'')):'';
@@ -1653,7 +1717,7 @@ function zipAuto(){ // 〒7桁そろったら住所を自動入力（日本郵�
     }catch(e){}
   },250);
 }
-function resetForm(){
+function resetForm(){ ["lc-name","lc-zip","lc-addr"].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=""; }); const _lc=document.getElementById("linked-corp"); if(_lc) _lc.style.display="none";
   LINKED=null; $("#linked-banner").style.display="none"; DEST_SRC=null;
   draftClear(false); kakouClear();
   ["f-name","f-zip","f-addr","f-tel","f-kiji1","f-kiji2","f-branch",
@@ -1860,7 +1924,7 @@ async function createOkurijo(doPrintArg){
       r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});
       j=await r.json();
     }
-    if(!j.ok){ toast("失敗: "+(j.message||j.error||"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; $("#btn-go2").disabled=false; return; }
+    if(!j.ok){ toast("失敗: "+(j.message||j.error||"")); $("#btn-go").disabled=false; $("#btn-go2").disabled=false; await showIssueError(j,false); return; }
     if(sName && !j.sender) toast("⚠️ 荷送人が反映されていません。作り直してください");   // 荷送人指定なのに空＝旧版に当たった等
     $("#r-no").textContent=j.okurijoNo;
     $("#r-note").innerHTML=(j.tome?("🏢 "+j.tome+"支店止め（〒"+j.zip+"）　"):"")+(j.print?'<span class="badge">🖨 印刷キュー済（十数秒で出ます）</span>':'<span class="badge" style="background:#8a7350">登録のみ（出荷登録タブから印刷できます）</span>');
@@ -1876,6 +1940,10 @@ async function createOkurijo(doPrintArg){
 }
 async function issueLinked(wantPrint){ // order-desk連携発行: seinoissue(番号がorder-deskに書き戻る・自動印刷)
   const c=LINKED;
+  if(c.corpPending){   // GASの法人ガード(corpNameRequired)で必ず失敗する＝西濃に投げる前に止めて登録を促す
+    await uiAlert('<div style="font-size:15px;font-weight:700;margin-bottom:8px;color:#c0392b">⚠️ 法人名・法人住所が未登録です</div>法人のお客様は<b>法人名・法人住所</b>で送り状を出す決まりのため、このままでは発行できません。<br>連携バナーの欄に入れて「💾 法人情報を保存」してから、もう一度「出荷登録」を押してください。');
+    showLinkedCorp(true,{customer:c.orderCustomer||c.customer,zip:$("#f-zip").value,addr:$("#f-addr").value}); $("#lc-name").focus(); return;
+  }
   // 手入力発行専用の項目（荷送人上書き・詳細オプション）は連携発行では使われない
   const extras=(document.querySelector('input[name="sender"]:checked').value==="other"&&$("#s-name").value.trim())
     || $("#f-yuso").value || $("#f-shohin").value!=="0"
@@ -1913,7 +1981,7 @@ async function issueLinked(wantPrint){ // order-desk連携発行: seinoissue(番
       r=await fetch(_u+"&ackKakou=1");
       j=await r.json();
     }
-    if(!j.ok){ toast("失敗: "+(j.error||"")+(j.message?(" "+j.message):"")+(j.raw?(" "+j.raw):"")); $("#btn-go").disabled=false; $("#btn-go2").disabled=false; return; }
+    if(!j.ok){ toast("失敗: "+(j.error||"")); $("#btn-go").disabled=false; $("#btn-go2").disabled=false; await showIssueError(j,true); return; }
     $("#r-no").textContent=j.okurijoNo;
     $("#r-note").innerHTML='🔗 order-deskに書き戻し済　'+(wantPrint===false?'<span class="badge" style="background:#8a7350">登録のみ（出荷登録タブから印刷できます）</span>':'<span class="badge">🖨 印刷キュー済（十数秒で出ます）</span>')+(j.note?(" "+j.note):"");
     $("#r-track").href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1="+j.okurijoNo;
