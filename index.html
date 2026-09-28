@@ -1509,8 +1509,11 @@ function renderDraftTab(d){
       +'<div class="dbtns"><button style="background:var(--accent);color:#fff" onclick="draftOpen('+i+')">✏️ 開く → 確認して発行</button><button style="background:#fff;border:1px solid var(--line);color:var(--warn)" onclick="draftDelete(\''+esc(x.id)+'\',\''+esc(x.label||"")+'\')">🗑 削除</button></div></div>'; };
   const cardCand=(c,i)=>{ const m=MB[c.mall]||["その他","other"]; const k=c.kakou;
     const corpNg=(String(c.custType||"").indexOf("法人")>=0 && !c.corpName);
-    return '<div class="dcard"><span class="mbadge '+m[1]+'">'+m[0]+'</span><div class="dbody"><b class="nm">'+esc(c.customer)+' 様</b>'+(c.corpName?' <span class="mbadge other" style="background:#2e7d32">法人 '+esc(c.corpName)+'</span>':'')+(corpNg?' <span class="mbadge other" style="background:var(--warn)">法人名 未確認</span>':'')+(c.custType==="個人"&&c.branch?' <span class="mbadge other" style="background:#e8721b">'+esc(c.branch)+'止め</span>':'')+' '+(k?dueTag(k.due):'')
-      +'<div class="meta">'+esc((c.zip?("〒"+c.zip+" "):"")+(c.addr||"")+(c.tel?("　TEL "+c.tel):""))+'</div>'
+    // 法人は送り状に印字される宛名(法人名)・法人住所で見せる＝order-deskの「法人の届け先」と同じ表示にそろえる(2026-09-28)
+    const isCorpC=(String(c.custType||"").indexOf("法人")>=0 && !!c.corpName);
+    const zipC=isCorpC?(c.corpZip||c.zip):c.zip, addrC=isCorpC?(c.corpAddr||c.addr):c.addr;
+    return '<div class="dcard"><span class="mbadge '+m[1]+'">'+m[0]+'</span><div class="dbody"><b class="nm">'+(isCorpC?esc(corpAbbrev(c.corpName))+'</b> <span style="color:#666;font-size:12px">（注文者 '+esc(c.customer)+' 様）</span> <span class="mbadge other" style="background:#2e7d32">法人</span>':esc(c.customer)+' 様</b>'+(c.corpName?' <span class="mbadge other" style="background:#2e7d32">法人 '+esc(c.corpName)+'</span>':''))+(corpNg?' <span class="mbadge other" style="background:var(--warn)">法人名 未確認</span>':'')+(c.custType==="個人"&&c.branch?' <span class="mbadge other" style="background:#e8721b">'+esc(c.branch)+'止め</span>':'')+' '+(k?dueTag(k.due):'')
+      +'<div class="meta">'+esc((zipC?("〒"+zipC+" "):"")+(addrC||"")+(c.tel?("　TEL "+c.tel):""))+'</div>'
       +'<div class="meta">'+esc((c.items||[]).map(x=>x.name.replace(/【.*?】|\s+/g," ").trim().slice(0,28)+"×"+x.qty).join("／"))+'</div>'
       +'<div class="meta">注文の計算: '+c.kosu+'個口・'+c.weightKg+'kg（'+esc([c.kiji1,c.kiji2].filter(Boolean).join(" "))+'）'+(c.deliveryDate?('　お客様の着日希望 <b>'+fd(c.deliveryDate)+'</b>'):'')+'</div>'
       +(corpNg?'<div class="meta" style="color:var(--warn);font-weight:700">⚠️ 法人のお客様ですが法人名・法人住所が未登録です＝このままでは発行できません。「法人情報を登録して発行へ」で法人名・住所を入れてから発行してください（宛名は法人名で出ます）</div>':'')
