@@ -1463,6 +1463,23 @@ function candOpen(idx){
   if(c.deliveryDate){ $("#f-yuso").value="02"; $("#f-haitatsu-date").value=c.deliveryDate; $("#f-haitatsu-kbn").value="0"; yusoToggle(); }
   window.scrollTo({top:0,behavior:"smooth"});
 }
+// 予定表の西濃行のうち、別の送り状で出した・不要な行を候補から外す（加工予定表の行そのものは消さない）
+async function kakouDismiss(idx){
+  const r=(DRAFT_CACHE&&DRAFT_CACHE.kakou||[])[idx]; if(!r) return;
+  const label=(r.customer||"")+" "+[r.grade,[r.thickness,r.width,r.length].filter(Boolean).join("×")].filter(Boolean).join(" ");
+  // 先に画面から消す（体感を速く）→ サーバーに目印を保存
+  DRAFT_CACHE.drafts=(DRAFT_CACHE.drafts||[]).concat([{id:"tmp"+Date.now(),source:"dismiss",label:label,form:{kakouUid:r.uid}}]); renderDraftTab(DRAFT_CACHE);
+  try{
+    const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({email:CRED.email,pass:CRED.pass,action:"seinodraftsave",id:"",source:"dismiss",label:"［候補から外す］"+label,form:{kakouUid:r.uid}})});
+    const j=await res.json(); toast(j.ok?("候補から外しました: "+label):"保存できませんでした: "+(j.error||""));
+  }catch(e){ toast("通信エラー（外した状態が保存されていません）"); }
+  loadDraftTab(1);
+}
+async function kakouUndismissAll(){
+  const ds=(DRAFT_CACHE&&DRAFT_CACHE.drafts||[]).filter(x=>x.source==="dismiss"&&!String(x.id).startsWith("tmp"));
+  await Promise.all(ds.map(x=>gasGet2("seinodraftdel","id="+encodeURIComponent(x.id)).catch(()=>{})));
+  toast("外した行を候補に戻しました"); loadDraftTab(1);
+}
 function kakouOpen(idx){ const r=(DRAFT_CACHE&&DRAFT_CACHE.kakou||[])[idx]; if(r) kakouPrefill(r); }
 function updateDraftBadge(n){ const b=$("#tab-cnt-draft"); if(!b) return; if(n>0){ b.textContent=n; b.style.display="inline-block"; } else b.style.display="none"; }
 async function loadDraftTab(force){
@@ -1481,6 +1498,9 @@ async function loadDraftTab(force){
     const byId={}; cands.forEach(x=>{ byId[String(x.id)]=x; });
     const kakOnly=[];
     kak.forEach(r=>{ if(r.issued) return; if(r.orderId && byId[r.orderId]){ byId[r.orderId].kakou=r; return; } if(r.orderId) return; kakOnly.push(r); });   // orderIdあり＝EC注文。候補に無い(発行済み等)なら出さない
+    // 「いらない」で外した予定表行の目印(source=dismiss)は、その行が予定表から消えたら(出荷完了等)片付ける
+    if(b.ok && c.ok){ const alive={}; kak.forEach(r=>{ alive[String(r.uid)]=1; });
+      (c.list||[]).filter(x=>x.source==="dismiss" && !alive[String((x.form||{}).kakouUid)]).forEach(x=>{ gasGet2("seinodraftdel","id="+encodeURIComponent(x.id)).catch(()=>{}); }); }
     const data={cands:cands, kakou:kakOnly, drafts:(c.list||[]), issuedN:kak.filter(r=>r.issued).length, at:Date.now()};
     DRAFT_CACHE=data; swrSet("seinodesk_drafts",data); renderDraftTab(data);
   }catch(e){ if(!DRAFT_CACHE && el) el.innerHTML='<div class="hint" style="padding:10px;color:var(--warn)">取得できませんでした</div>'; }
@@ -1496,7 +1516,9 @@ function renderDraftTab(d){
   (d.drafts||[]).forEach(x=>{ const f=x.form||{}; if(f.linked&&f.linked.id) dOrder[String(f.linked.id)]=1; if(f.kakouUid) dKakou[String(f.kakouUid)]=1; });
   const cands=(d.cands||[]).map((c,i)=>({c:c,i:i})).filter(o=>!dOrder[String(o.c.id)] && !(o.c.kakou&&dKakou[String(o.c.kakou.uid)]));
   const kakou=(d.kakou||[]).map((r,i)=>({r:r,i:i})).filter(o=>!dKakou[String(o.r.uid)]);
-  const n=(d.drafts||[]).length+cands.length+kakou.length;
+  const drafts=(d.drafts||[]).map((x,i)=>({x:x,i:i})).filter(o=>o.x.source!=="dismiss");
+  const dismissN=(d.drafts||[]).length-drafts.length;
+  const n=drafts.length+cands.length+kakou.length;
   updateDraftBadge(n);
   $("#draft-sub").textContent="（"+n+"件"+(d.at?("・"+new Date(d.at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})+"取得"):"")+"）";
   // 出荷日バッジ（本日=緑・過ぎた=赤・先の日=グレー・未設定）
@@ -1532,11 +1554,12 @@ function renderDraftTab(d){
       +'<div class="meta">出荷 <b>'+(fd(r.due)||"未設定")+'</b>'+(r.chaku?('　着日 <b>'+fd(r.chaku)+' '+esc(r.chakuKbn||"")+'</b>'):'')+(r.actual&&r.actual!=='-'?('　<span style="color:#c0392b">'+esc(r.actual)+'</span>'):'')+(r.remark?('　'+esc(r.remark)):'')+'</div>'
       +(r.important_note?('<div class="meta" style="color:#b71c1c;font-weight:700">⚠️ '+esc(r.important_note)+'</div>'):'')
       +'</div><div class="dbtns"><button style="background:#e65100;color:#fff" onclick="kakouOpen('+i+')">✏️ 確認して発行へ</button>'
+      +'<button style="background:#fff;border:1px solid var(--line);color:var(--warn)" onclick="kakouDismiss('+i+')">🗑 いらない（候補から外す）</button>'
       +(r.hacchu&&r.hacchu.fileUrl?('<a href="'+esc(r.hacchu.fileUrl)+'" target="_blank" rel="noopener" style="display:block;text-align:center;background:#fff;border:1px solid #1565c0;color:#1565c0;border-radius:8px;padding:6px 10px;font-size:12px;text-decoration:none">📄 発注書を別タブで開く</a>'):'')+'</div></div>';
   // 本日出荷（加工予定表の出荷日=今日）と、それ以外に分ける
   const G={today:{drafts:[],cands:[],kakou:[]}, other:{drafts:[],cands:[],kakou:[]}};
   const put=(kind,html,due)=>{ (due===today?G.today:G.other)[kind].push({html:html,due:due||""}); };
-  (d.drafts||[]).forEach((x,i)=>put("drafts",cardDraft(x,i),(x.form||{})["f-date"]||""));
+  drafts.forEach(o=>put("drafts",cardDraft(o.x,o.i),(o.x.form||{})["f-date"]||""));
   cands.forEach(o=>put("cands",cardCand(o.c,o.i),o.c.kakou?o.c.kakou.due:""));
   kakou.forEach(o=>put("kakou",cardKakou(o.r,o.i),o.r.due||""));
   const section=(title,arr)=>{ if(!arr.length) return ""; let h='<div class="dsec">'+title+'<span class="cnt2">'+arr.length+'</span></div>'; arr.forEach(x=>{ h+=x.html; }); return h; };
@@ -1550,6 +1573,7 @@ function renderDraftTab(d){
   let h="";
   h+=group("today","🚚 本日出荷 "+fd(today)+"（加工予定表の出荷日が今日）","today","本日出荷の西濃はありません");
   h+=group("other","📅 それ以外（出荷日が別の日・未設定）","other","ありません"+(d.issuedN?('（発行済み '+d.issuedN+'行は非表示）'):''));
+  if(dismissN) h+='<div class="hint" style="padding:6px 8px">「いらない」で外した予定表の行 '+dismissN+'件は非表示　<a href="#" onclick="kakouUndismissAll();return false">元に戻す</a></div>';
   if(!n) h+='<div class="hint" style="padding:8px">仮登録は発行フォームの「🗒 仮登録として保存」で残せます。</div>';
   el.innerHTML=h;
 }
