@@ -611,7 +611,22 @@ function renderShime(j){
     if(st.queued) return `<span style="background:#fff4e5;color:#a06414;border:1px solid #f0d9b0;border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">${label} ⏳処理中</span>`;
     return `<span style="background:#f3f2ee;color:#999;border:1px solid #e4e2da;border-radius:20px;padding:3px 10px;font-size:11.5px">${label} 未</span>`;
   };
-  el.innerHTML=chip("🖨印刷",s.print)+chip("📠FAX",s.fax)+chip("🚛集荷",s.pickup);
+  // FAXの送信失敗（GAS側で10分おきに自動再送・あきらめたら giveUp）。済みになったら出さない
+  const fe=(!s.fax.done && s.fax.err)?s.fax.err:null;
+  const hm=iso=>{ const d=new Date(iso); return isNaN(d)?"":d.getHours()+":"+String(d.getMinutes()).padStart(2,"0"); };
+  const faxChip=fe
+    ? `<span style="background:#fdecea;color:#b3261e;border:1px solid #f1b5b0;border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700">📠FAX ❌送信失敗${fe.giveUp?"":"（再送待ち）"}</span>`
+    : chip("📠FAX",s.fax);
+  const faxErr=fe
+    ? `<div style="margin:8px 0;background:#fdecea;color:#8c1d18;border:1px solid #f1b5b0;border-radius:9px;padding:9px 12px;font-size:12.5px;line-height:1.6">
+        <b>出荷一覧表のFAXが西濃へ届いていません</b>（${esc(hm(fe.at))} ${fe.tries}回目の失敗）<br>理由: ${esc(fe.reason||fe.error||"不明")}<br>
+        ${fe.giveUp?"自動再送は打ち切りました。「📠FAXだけ」をもう一度押すか、info@ に届いた出荷一覧表PDFを手動でFAXしてください。"
+                   :"次は "+esc(hm(fe.nextAt))+" ごろ自動で再送します（10分おき・最大"+(fe.max||6)+"回）。急ぐ時は info@ に届いた出荷一覧表PDFを手動でFAXしてください。"}
+      </div>` : "";
+  el.innerHTML=chip("🖨印刷",s.print)+faxChip+chip("🚛集荷",s.pickup);
+  let eb=$("#shime-faxerr");   // 見出し行(flex)の外＝直後に赤枠を出す
+  if(!eb){ eb=document.createElement("div"); eb.id="shime-faxerr"; el.parentNode.insertAdjacentElement("afterend",eb); }
+  eb.innerHTML=faxErr;
   // 処理中があれば30秒後に自動再取得（済みへの切替を拾う）
   if((s.print.queued||s.fax.queued||s.pickup.queued) && !renderShime._t){
     renderShime._t=setTimeout(()=>{ renderShime._t=null; loadToday(); },30000);
