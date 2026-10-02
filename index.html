@@ -404,7 +404,7 @@ button.primary:disabled{opacity:.5;cursor:default}
   <div class="card tab-draft" id="draft-card" style="display:none">
     <div class="sec" style="display:flex;align-items:center;gap:8px">🗒 仮登録・候補（まだ西濃には送っていません）<span id="draft-sub" class="hint" style="margin:0"></span><span style="flex:1"></span>
       <button class="hbtn" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer" onclick="loadDraftTab(1)">↻ 更新</button></div>
-    <div class="hint" style="margin-bottom:10px">楽天・ヤフーの西濃注文と、加工予定表の西濃出荷（未発行）を候補として出します。<b>「確認して発行へ」</b>で内容を確認してから出荷登録（本登録）してください。<br>本登録すると西濃側に登録され、取消はカンガルーマジック（KM2）画面での削除が必要になります。</div>
+    <div class="hint" style="margin-bottom:10px">楽天・ヤフーの西濃注文（未発行）と、保存した仮登録を出します。加工予定表の市場・手入力の行は既定で非表示です（一覧の下の「表示する」で出せます）。<b>「確認して発行へ」</b>で内容を確認してから出荷登録（本登録）してください。<br>本登録すると西濃側に登録され、取消はカンガルーマジック（KM2）画面での削除が必要になります。</div>
     <div id="draft-list"><div class="hint" style="padding:10px">読み込み中…</div></div>
   </div>
 
@@ -1496,6 +1496,8 @@ async function kakouUndismissAll(){
   toast("外した行を候補に戻しました"); loadDraftTab(1);
 }
 function kakouOpen(idx){ const r=(DRAFT_CACHE&&DRAFT_CACHE.kakou||[])[idx]; if(r) kakouPrefill(r); }
+function kakouShown(){ try{ return localStorage.getItem("seinodesk_showkakou")==="1"; }catch(e){ return false; } }
+function kakouShowToggle(v){ try{ localStorage.setItem("seinodesk_showkakou",v?"1":"0"); }catch(e){} if(DRAFT_CACHE) renderDraftTab(DRAFT_CACHE); }
 function updateDraftBadge(n){ const b=$("#tab-cnt-draft"); if(!b) return; if(n>0){ b.textContent=n; b.style.display="inline-block"; } else b.style.display="none"; }
 async function loadDraftTab(force){
   const el=$("#draft-list");
@@ -1530,7 +1532,10 @@ function renderDraftTab(d){
   const dOrder={}, dKakou={};
   (d.drafts||[]).forEach(x=>{ const f=x.form||{}; if(f.linked&&f.linked.id) dOrder[String(f.linked.id)]=1; if(f.kakouUid) dKakou[String(f.kakouUid)]=1; });
   const cands=(d.cands||[]).map((c,i)=>({c:c,i:i})).filter(o=>!dOrder[String(o.c.id)] && !(o.c.kakou&&dKakou[String(o.c.kakou.uid)]));
-  const kakou=(d.kakou||[]).map((r,i)=>({r:r,i:i})).filter(o=>!dKakou[String(o.r.uid)]);
+  // 予定表の市場・手入力の行は既定で出さない（候補は楽天・ヤフーの注文と仮登録だけ・2026-10-02 本人指示）。下の「表示する」で出せる
+  const kakouAll=(d.kakou||[]).map((r,i)=>({r:r,i:i})).filter(o=>!dKakou[String(o.r.uid)]);
+  const showKakou=kakouShown();
+  const kakou=showKakou?kakouAll:[];
   const drafts=(d.drafts||[]).map((x,i)=>({x:x,i:i})).filter(o=>o.x.source!=="dismiss");
   const dismissN=(d.drafts||[]).length-drafts.length;
   const n=drafts.length+cands.length+kakou.length;
@@ -1588,6 +1593,7 @@ function renderDraftTab(d){
   let h="";
   h+=group("today","🚚 本日出荷 "+fd(today)+"（加工予定表の出荷日が今日）","today","本日出荷の西濃はありません");
   h+=group("other","📅 それ以外（出荷日が別の日・未設定）","other","ありません"+(d.issuedN?('（発行済み '+d.issuedN+'行は非表示）'):''));
+  if(kakouAll.length) h+='<div class="hint" style="padding:6px 8px">加工予定表の西濃出荷（市場・手入力の行）'+kakouAll.length+'件は'+(showKakou?'表示中':'非表示')+'　<a href="#" onclick="kakouShowToggle('+(showKakou?0:1)+');return false">'+(showKakou?'隠す':'表示する')+'</a></div>';
   if(dismissN) h+='<div class="hint" style="padding:6px 8px">「いらない」で外した予定表の行 '+dismissN+'件は非表示　<a href="#" onclick="kakouUndismissAll();return false">元に戻す</a></div>';
   if(!n) h+='<div class="hint" style="padding:8px">仮登録は発行フォームの「🗒 仮登録として保存」で残せます。</div>';
   el.innerHTML=h;
