@@ -144,7 +144,6 @@ button.primary:disabled{opacity:.5;cursor:default}
   <!-- タブ -->
   <div class="tabs" id="tabs" style="display:none">
     <button id="tab-btn-issue" class="active" onclick="switchTab('issue')">📝 送り状発行</button>
-    <button id="tab-btn-draft" onclick="switchTab('draft')">🗒 仮登録・候補<span class="cnt" id="tab-cnt-draft" style="display:none">0</span></button>
     <button id="tab-btn-reg" onclick="switchTab('reg')">🖨 出荷登録<span class="cnt" id="tab-cnt-reg" style="display:none">0</span></button>
     <button id="tab-btn-list" onclick="switchTab('list')">📋 出荷一覧表<span class="cnt" id="tab-cnt" style="display:none">0</span></button>
     <button id="tab-btn-hist" onclick="switchTab('hist')">🗂 出荷履歴</button>
@@ -365,8 +364,7 @@ button.primary:disabled{opacity:.5;cursor:default}
 
           <button class="km2-go" id="btn-go" onclick="createOkurijo(true)">出荷登録 ＋ 印刷</button>
           <button class="km2-go" id="btn-go2" onclick="createOkurijo(false)" style="background:#fff;color:#c00;border:2px solid #c00;margin-top:6px">出荷登録だけ（印刷しない）</button>
-          <button class="km2-go" id="btn-draft" onclick="saveDraft()" style="background:#fff;color:#8a7350;border:2px solid #8a7350;margin-top:6px;font-size:15px;letter-spacing:.08em">🗒 仮登録として保存（西濃には送らない）</button>
-          <div style="font-size:10.5px;color:#888;line-height:1.6;margin-top:5px">「登録だけ」の分は<b>出荷登録タブ</b>に溜まり、あとからまとめて印刷できます。<br>「仮登録」は<b>仮登録・候補タブ</b>に残り、西濃には登録されません（あとで開いて確認→出荷登録）。</div>
+          <div style="font-size:10.5px;color:#888;line-height:1.6;margin-top:5px">「登録だけ」の分は<b>出荷登録タブ</b>に溜まり、あとからまとめて印刷できます。</div>
         </div>
       </div>
 
@@ -398,14 +396,6 @@ button.primary:disabled{opacity:.5;cursor:default}
         <span class="hint">〒・電話を補完したら、次回のために取引先マスタへ保存できます（空欄のみ埋めます）</span>
       </div>
     </div>
-  </div>
-
-  <!-- 仮登録・候補タブ：楽天/ヤフーの注文・加工予定表の西濃出荷・保存した下書き（西濃未登録） -->
-  <div class="card tab-draft" id="draft-card" style="display:none">
-    <div class="sec" style="display:flex;align-items:center;gap:8px">🗒 仮登録・候補（まだ西濃には送っていません）<span id="draft-sub" class="hint" style="margin:0"></span><span style="flex:1"></span>
-      <button class="hbtn" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer" onclick="loadDraftTab(1)">↻ 更新</button></div>
-    <div class="hint" style="margin-bottom:10px">楽天・ヤフーの西濃注文（未発行）と、保存した仮登録を出します。加工予定表の市場・手入力の行は既定で非表示です（一覧の下の「表示する」で出せます）。<b>「確認して発行へ」</b>で内容を確認してから出荷登録（本登録）してください。<br>本登録すると西濃側に登録され、取消はカンガルーマジック（KM2）画面での削除が必要になります。</div>
-    <div id="draft-list"><div class="hint" style="padding:10px">読み込み中…</div></div>
   </div>
 
   <!-- 出荷登録タブ：登録済みの管理・あとから印刷 -->
@@ -579,7 +569,6 @@ async function doLogin(){
   }catch(e){ toast("通信エラー"); }
 }
 function showMain(){ $("#login").style.display="none"; $("#tabs").style.display="flex"; $("#btn-logout").style.display="inline-block"; switchTab("issue"); loadToday(); loadServerHist(); loadRegistered(); loadKakouHint(); const _fd=$("#f-date"); if(_fd&&!_fd.dataset.kh){ _fd.dataset.kh="1"; _fd.addEventListener("change",loadKakouHint); }
-  loadDraftTab();                                                   // 仮登録・候補の件数バッジ（裏で取得）
   const hp=parseKakouHash(); if(hp){ history.replaceState(null,"",location.pathname+location.search); kakouPrefillFromParams(hp); }   // 加工予定表の「🚚 西濃送り状を作る」から
 }
 // ---- タブ切替 ----
@@ -587,17 +576,14 @@ let CUR_TAB="issue";
 function switchTab(t){
   CUR_TAB=t;
   document.querySelectorAll(".tab-issue").forEach(e=>e.style.display=(t==="issue")?"block":"none");
-  document.querySelectorAll(".tab-draft").forEach(e=>e.style.display=(t==="draft")?"block":"none");
   document.querySelectorAll(".tab-reg").forEach(e=>e.style.display=(t==="reg")?"block":"none");
   document.querySelectorAll(".tab-list").forEach(e=>e.style.display=(t==="list")?"block":"none");
   document.querySelectorAll(".tab-hist").forEach(e=>e.style.display=(t==="hist")?"block":"none");
   $("#tab-btn-issue").classList.toggle("active",t==="issue");
-  $("#tab-btn-draft").classList.toggle("active",t==="draft");
   $("#tab-btn-reg").classList.toggle("active",t==="reg");
   $("#tab-btn-list").classList.toggle("active",t==="list");
   $("#tab-btn-hist").classList.toggle("active",t==="hist");
   if(t==="list") loadToday();
-  if(t==="draft") loadDraftTab();
   if(t==="reg") loadRegistered();
   if(t==="hist") loadShipHist();
 }
@@ -1413,7 +1399,7 @@ async function kakouPrefill(r){
   showKakouBanner(src, r.note||r.important_note||"");
   loadKakouHint();
   window.scrollTo({top:0,behavior:"smooth"});
-  toast("加工予定表の内容を転記しました。内容を確認して出荷登録（または仮登録）してください");
+  toast("加工予定表の内容を転記しました。内容を確認して出荷登録してください");
 }
 // ---- フォーム ⇄ オブジェクト ----
 const FORM_IDS=["f-date","f-shohin","f-tel","f-zip","f-addr","f-addr2","f-name","f-name2","f-kosu","f-kg","f-kiji1","f-kiji2","f-kiji3","f-kiji4","f-kiji5","f-branch","f-yuso","f-haitatsu-date","f-haitatsu-kbn","s-name","s-addr1","s-addr2","s-tel","f-busho","f-hoken","f-nifuda","f-sai","f-daibiki-shina","f-daibiki-tax"];
@@ -1500,7 +1486,7 @@ function kakouShown(){ try{ return localStorage.getItem("seinodesk_showkakou")==
 function kakouShowToggle(v){ try{ localStorage.setItem("seinodesk_showkakou",v?"1":"0"); }catch(e){} if(DRAFT_CACHE) renderDraftTab(DRAFT_CACHE); }
 function updateDraftBadge(n){ const b=$("#tab-cnt-draft"); if(!b) return; if(n>0){ b.textContent=n; b.style.display="inline-block"; } else b.style.display="none"; }
 async function loadDraftTab(force){
-  const el=$("#draft-list");
+  const el=$("#draft-list"); if(!el) return;   // 仮登録・候補タブは廃止（2026-10-23 本人指示）
   if(force){ DRAFT_CACHE=null; try{ localStorage.removeItem("seinodesk_drafts"); }catch(e){} if(el&&CUR_TAB==="draft") el.innerHTML='<div class="hint" style="padding:10px">最新を取得中…</div>'; }
   else if(!DRAFT_CACHE){ const c=swrGet("seinodesk_drafts",3*3600*1000); if(c){ DRAFT_CACHE=c; renderDraftTab(c); } }
   else renderDraftTab(DRAFT_CACHE);
