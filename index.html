@@ -2329,10 +2329,11 @@ function mobAlertsHtml(){
 function mobRender(){
   if(!IS_MOB) return;
   const j=TODAY_CACHE;
-  $("#mob-upd").textContent=MOB.at?(fmtD(j.date).replace(/-/g,"/")+"　"+mobHm(MOB.at)+" 時点"):(j?"前回の表示（最新を取得中…）":"読み込み中…");
+  $("#mob-upd").textContent=MOB.at?(fmtD(j.date).replace(/-/g,"/")+"　"+mobHm(MOB.at)+" 時点"):(MOB.err?"取得できませんでした":j?"前回の表示（最新を取得中…）":"読み込み中…");
   $("#mob-alerts").innerHTML=mobAlertsHtml();
   $("#mob-steps").innerHTML=MOB_KEYS.map(k=>{ const st=mobStepState(k), d=MOB_STEPS[k];
     return '<div class="mob-step"><span class="ic">'+d.ic+'</span><span class="nm">'+d.nm+'<small>'+d.sub+'</small></span><span class="mob-st '+st.c+'">'+st.t+'</span></div>'; }).join("");
+  $("#mob-sum").style.display=j?"":"none";
   $("#mob-sum").innerHTML=j?('<div><b>'+j.count+'</b>件</div><div><b>'+j.kosu+'</b>個口</div><div><b>'+j.weightKg+'</b>kg</div>'):'';
   $("#mob-list").innerHTML=j?(j.count?mobCardsHtml(j.list):'<div class="hint" style="padding:12px;text-align:center">本日発送する送り状はまだありません</div>'):'';
   const b=$("#mob-go"); b.className=""; let dis=true, txt;
