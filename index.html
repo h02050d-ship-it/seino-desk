@@ -116,6 +116,69 @@ button.primary:disabled{opacity:.5;cursor:default}
 .km2-go{width:100%;background:#dd0000;color:#fff;border:none;border-radius:3px;padding:16px;font-size:20px;font-weight:800;letter-spacing:.35em;cursor:pointer;margin-top:2px;box-shadow:0 2px 4px rgba(0,0,0,.15)}
 .km2-go:hover{background:#b80000}
 .km2-go:disabled{opacity:.5;cursor:default}
+/* ===== 📱スマホ画面（出荷の締め専用・2026-11-11）: body.mob の時だけ効く。PC画面には影響なし ===== */
+#mob,#mob-bar,#mob-sheet{display:none}
+body.mob .header{padding:10px 12px}
+body.mob .header .sub{display:none}
+body.mob .wrap{padding:12px 10px 120px}
+body.mob #tabs,body.mob .wrap>.card:not(#login){display:none!important}
+body.mob-in #mob{display:block}
+body.mob #yobo-btn{bottom:92px!important}
+body.mob-sh #yobo-btn{display:none!important}
+.mob-top{display:flex;align-items:center;gap:8px;margin:2px 2px 10px}
+.mob-top .t{font-size:17px;font-weight:800}
+.mob-top .u{font-size:11px;color:var(--muted)}
+.mob-top button{margin-left:auto;background:#fff;border:1px solid var(--accent);color:var(--accent);border-radius:10px;padding:9px 14px;font-size:14px;font-weight:700}
+.mob-alert{border-radius:12px;padding:11px 13px;margin-bottom:10px;font-size:13.5px;line-height:1.6}
+.mob-alert.red{background:#fdecea;border:1px solid #f1b5b0;color:#8c1d18}
+.mob-alert.org{background:#fff4e5;border:1px solid #f0d9b0;color:#7a4a0a}
+.mob-alert.blue{background:#eef3fb;border:1px solid #c9d9f0;color:#1a4d8f}
+.mob-steps{background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 12px;margin-bottom:10px}
+.mob-step{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+.mob-step:last-child{border-bottom:none}
+.mob-step .ic{font-size:20px;width:28px;text-align:center}
+.mob-step .nm{flex:1;min-width:0;font-weight:700}
+.mob-step .nm small{display:block;font-weight:400;font-size:11.5px;color:var(--muted)}
+.mob-st{border-radius:20px;padding:4px 11px;font-size:13px;font-weight:800;white-space:nowrap}
+.mob-st.todo{background:#f3f2ee;color:#888;border:1px solid #e4e2da}
+.mob-st.queued{background:#fff4e5;color:#a06414;border:1px solid #f0d9b0}
+.mob-st.done{background:#e6f4ea;color:#1e7e34;border:1px solid #b7e1c0}
+.mob-st.err,.mob-st.stall{background:#fdecea;color:#b3261e;border:1px solid #f1b5b0}
+.mob-st.run{background:#e8f0fb;color:#1657a0;border:1px solid #c3d6f0}
+.mob-sum{display:flex;background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.mob-sum div{flex:1;text-align:center;padding:10px 4px;border-right:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+.mob-sum div:last-child{border-right:none}
+.mob-sum b{display:block;font-size:24px;color:var(--accent);line-height:1.25}
+.mob-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:13px;line-height:1.55}
+.mob-card .r1{display:flex;align-items:flex-start;gap:8px}
+.mob-card .nm{flex:1;min-width:0;font-size:15px;font-weight:800;word-break:break-all}
+.mob-card .kg{white-space:nowrap;text-align:right;font-weight:800;font-size:15px}
+.mob-card .kg small{display:block;font-weight:400;font-size:11.5px;color:var(--muted)}
+.mob-card .meta{color:#666;font-size:12.5px}
+.mob-card .snd{font-size:12.5px;color:var(--muted)}
+.mob-card .snd.other{color:#b35a00;font-weight:800}
+.mob-card .no{font-family:monospace;font-size:12px;color:var(--accent)}
+.mob-tag{display:inline-block;font-size:11px;font-weight:800;color:#fff;border-radius:6px;padding:1px 7px;margin-right:4px;vertical-align:1px}
+.mob-foot{text-align:center;font-size:12.5px;margin:16px 0 4px;line-height:2}
+.mob-foot a{color:var(--accent)}
+body.mob-in #mob-bar{display:block;position:fixed;left:0;right:0;bottom:0;z-index:60;background:rgba(246,244,239,.97);border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+#mob-go,.mob-big{width:100%;min-height:58px;border:none;border-radius:14px;font-size:17px;font-weight:800;color:#fff;background:var(--ok);cursor:pointer;padding:10px}
+#mob-go:disabled,.mob-big:disabled{background:#c9c5bb;color:#fff;cursor:default}
+#mob-go.wait:disabled{background:#e0a64e}
+#mob-go.fin:disabled{background:#7fb79a}
+#mob-sheet{position:fixed;inset:0;z-index:120;background:var(--bg);flex-direction:column}
+#mob-sheet.open{display:flex}
+#mob-sheet .sh-h{background:var(--accent);color:#fff;padding:13px 14px;font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;padding-top:calc(13px + env(safe-area-inset-top,0px))}
+#mob-sheet .sh-b{flex:1;overflow-y:auto;padding:12px 12px 16px;-webkit-overflow-scrolling:touch}
+#mob-sheet .sh-f{display:flex;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:#fff}
+#mob-sheet .sh-f button{flex:1;min-height:56px;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer}
+#mob-sheet .sh-f .cancel{flex:.7;background:#fff;border:1px solid var(--line);color:#555}
+.mob-do{background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 12px;margin-bottom:10px}
+.mob-do div{padding:8px 0;border-bottom:1px dashed var(--line);font-size:14px;line-height:1.5}
+.mob-do div:last-child{border-bottom:none}
+.mob-ext{display:inline-block;background:#c0392b;color:#fff;border-radius:6px;font-size:11px;font-weight:800;padding:1px 6px;margin-left:4px;vertical-align:1px}
+.mob-ack{display:flex;gap:12px;align-items:center;background:#fff;border:2px solid var(--accent);border-radius:12px;padding:14px;font-size:15px;font-weight:700;margin:12px 0 4px;cursor:pointer}
+.mob-ack input{width:26px;height:26px;flex:none}
 </style>
 <script src="https://h02050d-ship-it.github.io/tool-portal/netguard.js"></script>
 <script src="https://h02050d-ship-it.github.io/tool-portal/tu.js" defer></script>
@@ -131,6 +194,15 @@ button.primary:disabled{opacity:.5;cursor:default}
 </div>
 
 <div class="wrap">
+  <!-- 📱スマホ画面: 出荷の締め専用（body.mob-in の時だけ表示） -->
+  <div id="mob">
+    <div class="mob-top"><div><div class="t">🏁 出荷の締め</div><div class="u" id="mob-upd">読み込み中…</div></div><button onclick="MOB.pollUntil=0;mobRefresh()">↻ 更新</button></div>
+    <div id="mob-alerts"></div>
+    <div class="mob-steps" id="mob-steps"></div>
+    <div class="mob-sum" id="mob-sum"></div>
+    <div id="mob-list"></div>
+    <div class="mob-foot">送り状の発行・訂正は <a href="?pc=1">PC画面で開く</a><br><span style="color:var(--muted);font-size:11.5px">印刷・FAX・集荷依頼は会社PCが1分以内に実行します</span></div>
+  </div>
   <!-- ログイン -->
   <div class="card" id="login">
     <div class="sec">ログイン（ボードと共通）</div>
@@ -502,6 +574,8 @@ button.primary:disabled{opacity:.5;cursor:default}
 </div>
 
 <!-- 確認モーダル（内容に合わせて縮む・スクロールなし） -->
+<div id="mob-bar"><button id="mob-go" onclick="mobConfirm()" disabled>読み込み中…</button></div>
+<div id="mob-sheet"><div class="sh-h" id="mob-sh-h"></div><div class="sh-b" id="mob-sh-b"></div><div class="sh-f" id="mob-sh-f"></div></div>
 <div id="confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:130;align-items:center;justify-content:center;padding:20px">
   <div style="background:#fff;border-radius:14px;max-width:440px;width:100%;box-shadow:0 10px 34px rgba(0,0,0,.25);overflow:hidden">
     <div id="confirm-body" style="padding:20px;font-size:14px;line-height:1.75;color:var(--ink);max-height:78vh;overflow-y:auto"></div>
@@ -549,6 +623,7 @@ function ssoFind_(){
 function ssoWrite(email,pass){ try{ localStorage.setItem(SSO_KEY,JSON.stringify({email:email,pass:pass})); }catch(e){} }
 function ssoClear(){ try{ localStorage.removeItem(SSO_KEY); }catch(e){} }
 function init(){
+  if(IS_MOB) document.body.classList.add("mob");
   const dl=$("#branches"); OFFICES.forEach(n=>{const o=document.createElement("option");o.value=n;dl.appendChild(o);});
   var _d=new Date(); $("#f-date").value=new Date(_d.getTime()-_d.getTimezoneOffset()*60000).toISOString().slice(0,10); // ローカル日付（UTCだと朝9時前に前日になる）
   ["l-email","l-pass"].forEach(id=>{$("#"+id).addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});});
@@ -568,7 +643,9 @@ async function doLogin(){
     else toast("メールまたはパスワードが違います");
   }catch(e){ toast("通信エラー"); }
 }
-function showMain(){ $("#login").style.display="none"; $("#tabs").style.display="flex"; $("#btn-logout").style.display="inline-block"; switchTab("issue"); loadToday(); loadServerHist(); loadRegistered(); loadKakouHint(); const _fd=$("#f-date"); if(_fd&&!_fd.dataset.kh){ _fd.dataset.kh="1"; _fd.addEventListener("change",loadKakouHint); }
+function showMain(){
+  if(IS_MOB){ $("#login").style.display="none"; $("#btn-logout").style.display="inline-block"; document.body.classList.add("mob-in"); mobShow(); return; }   // 📱スマホ＝締め専用画面（PC用の読み込みはしない）
+  $("#login").style.display="none"; $("#tabs").style.display="flex"; $("#btn-logout").style.display="inline-block"; switchTab("issue"); loadToday(); loadServerHist(); loadRegistered(); loadKakouHint(); const _fd=$("#f-date"); if(_fd&&!_fd.dataset.kh){ _fd.dataset.kh="1"; _fd.addEventListener("change",loadKakouHint); }
   const hp=parseKakouHash(); if(hp){ history.replaceState(null,"",location.pathname+location.search); kakouPrefillFromParams(hp); }   // 加工予定表の「🚚 西濃送り状を作る」から
 }
 // ---- タブ切替 ----
@@ -2155,6 +2232,238 @@ function renderHist(){
     const m=(h.mall&&MB[h.mall])?MB[h.mall]:(h.src==="km2")?["KM2","other"]:((h.src==="desk"||h.src==="local")?["手入力","other"]:["その他","other"]);
     return `<div class="hist-item"><span class="mbadge ${m[1]}">${m[0]}</span><span class="no">${h.no}</span><span>${esc(h.name||"")} 様</span><span class="meta">${h.kosu}個口${h.tome?("・"+esc(h.tome)+"止め"):""}${h.when?("・"+h.when):""}</span><span class="sp"></span><a href="https://track.seino.co.jp/kamotsu/GempyoNoShokai.do?GNPNO1=${h.no}" target="_blank">追跡</a><a href="#" onclick="pdfView('${h.no}');return false;">PDF</a><a href="#" onclick="pdfDownload('${h.no}');return false;" title="PDF保存">⬇</a></div>`;
   }).join("");
+}
+// ===================== 📱スマホ画面（出荷の締め専用・2026-11-11） =====================
+// 画面幅760px以下で自動（?m=1=スマホ固定／?pc=1=PC固定）。実行は今の仕組みのまま＝GASにキューを積み、会社PCの見張り(watch.ps1)が1分以内に実行。
+// 安全策: ①最新取得できない時は押せない ②済み・処理中の処理は押せない（残りだけ実行） ③確認画面でチェック必須
+//         ④実行直前に再取得し、確認時と件数・個口・重量・送り状番号が変わっていたら止める ⑤実行中は二重に押せない
+//         ⑥キューが MOB_STALL_MIN 分以上残っていたら「会社PCが処理していません」と赤で出す（ジョブの登録時刻は listprintjob/faxjob/pickupjob の読み取りで取得）
+var IS_MOB=(function(){ try{ const q=new URLSearchParams(location.search); if(q.get("pc")==="1") return false; if(q.get("m")==="1") return true; if(parseKakouHash()) return false; return window.matchMedia("(max-width:760px)").matches; }catch(e){ return false; } })();
+const MOB_STALL_MIN=4;
+const MOB={at:0, err:"", senders:null, jobAt:{}, running:false, sheet:null, snap:null, req:null, pollT:null, pollUntil:0};
+const MOB_STEPS={print:{ic:"🖨",nm:"出荷一覧表を印刷",sub:"会社PCで2枚（ドライバー控え＋受領書）",done:"印刷済み"},
+                 fax:{ic:"📠",nm:"西濃袋井支店へFAX",sub:"出荷一覧表（荷主控え）を実FAX",done:"FAX送信済み",ext:1},
+                 pickup:{ic:"🚛",nm:"集荷依頼",sub:"西濃へWeb集荷依頼（16時集荷）",done:"集荷依頼済み",ext:1}};
+const MOB_KEYS=["print","fax","pickup"];
+function mobHm(t){ const d=new Date(t); return isNaN(d)?"":d.getHours()+":"+String(d.getMinutes()).padStart(2,"0"); }
+function mobShow(){
+  const c=TODAY_CACHE||swrGetSameDay("seinodesk_today"); if(c) TODAY_CACHE=c;   // 前回分は「見るだけ」。最新取得まで実行ボタンは押せない
+  try{ MOB.senders=JSON.parse(localStorage.getItem("seinodesk_mob_snd")||"null"); }catch(e){}
+  mobRender(); mobRefresh();
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden && !MOB.running){ MOB.pollUntil=0; mobRefresh(true); } });
+}
+async function mobFetchToday(){
+  const j=await gasGet("seinotoday");
+  if(!j||!j.ok){ const e=new Error((j&&j.error)||"取得失敗"); e.code=j&&j.error; throw e; }
+  TODAY_CACHE=j; TODAY_STALE=false; swrSet("seinodesk_today",j); MOB.at=Date.now(); MOB.err="";
+  return j;
+}
+// 処理待ちジョブの登録時刻（会社PCが止まっていると時刻が古いまま残る）。読み取りのみ＝ジョブは消費しない
+async function mobJobAges(j){
+  const s=(j&&j.shime)||{}, ep={print:"listprintjob",fax:"faxjob",pickup:"pickupjob"};
+  await Promise.all(MOB_KEYS.map(async k=>{
+    if(!(s[k]&&s[k].queued)){ MOB.jobAt[k]=null; return; }
+    try{ const r=await gasGet(ep[k]); MOB.jobAt[k]=(r&&r.job&&r.job.at)||null; }catch(e){}
+  }));
+}
+async function mobLoadSenders(){   // 荷送人（SeinoManualのsenderName）。空＝林材木店
+  try{ const r=await gasGet2("seinoregistered","days=1");
+    if(r&&r.ok){ const m={}; (r.list||[]).forEach(x=>{ m[String(x.okurijoNo)]=String(x.sender||""); }); MOB.senders=m; try{ localStorage.setItem("seinodesk_mob_snd",JSON.stringify(m)); }catch(e){} }
+  }catch(e){}
+}
+async function mobRefresh(light){
+  if(MOB._busy) return MOB._busy;
+  MOB._busy=(async()=>{
+    try{ const j=await mobFetchToday(); await Promise.all([mobJobAges(j), light?null:mobLoadSenders()]); }
+    catch(e){ TODAY_STALE=true; MOB.err=(e&&e.code==="unauthorized")?"unauthorized":String((e&&e.message)||e||"通信エラー"); }
+    mobRender(); mobPollNext();
+  })();
+  try{ await MOB._busy; }finally{ MOB._busy=null; }
+}
+function mobShime(k){ return (((TODAY_CACHE||{}).shime)||{})[k]||{}; }
+function mobStepState(k){
+  const s=mobShime(k);
+  if(k==="fax" && s.err && !s.done) return {c:"err", t:s.err.giveUp?"❌ 送信失敗":"❌ 失敗・再送待ち"};
+  if(s.queued){
+    const at=MOB.jobAt[k], min=at?(Date.now()-new Date(at).getTime())/60000:0;
+    if(min>=MOB_STALL_MIN) return {c:"stall", t:"⚠️ "+Math.floor(min)+"分 未処理", min:min};
+    return {c:"queued", t:"⏳ 処理待ち"+(min>=1?" "+Math.floor(min)+"分":"")};
+  }
+  if(s.done) return {c:"done", t:"✅ "+MOB_STEPS[k].done};
+  return {c:"todo", t:"未"};
+}
+function mobRemaining(){ return MOB_KEYS.filter(k=>{ const s=mobShime(k); return !s.done && !s.queued; }); }   // 済み・処理中（再送待ち含む）は実行しない
+function mobSender(no){
+  if(!MOB.senders) return null;
+  const s=MOB.senders[String(no)];
+  return (s==null||s==="")?"":s;
+}
+function mobCardsHtml(list){
+  const MB={rakuten:["楽天","#bf0000"],yahoo:["Yahoo!","#ff0033"],ichiba:["市場","#2e7d32"]};
+  return (list||[]).map(x=>{
+    const m=(x.src==="desk")?["手入力","#8a8378"]:(x.src==="km2")?["KM2","#8a8378"]:(MB[x.mall]||["その他","#8a8378"]);
+    const snd=mobSender(x.okurijoNo);
+    const sndHtml=snd===null?'<div class="snd">荷送人: （取得できず）</div>'
+               :snd?'<div class="snd other">荷送人: '+esc(snd)+'</div>':'<div class="snd">荷送人: 林材木店</div>';
+    return '<div class="mob-card"><div class="r1"><div class="nm"><span class="mob-tag" style="background:'+m[1]+'">'+m[0]+'</span>'+esc(x.customer||"")+' 様</div>'
+      +'<div class="kg">'+(x.kosu||0)+'個口<small>'+(x.weightKg||0)+'kg</small></div></div>'
+      +(x.corp&&x.orderCustomer?'<div class="meta">注文者 '+esc(x.orderCustomer)+' 様</div>':'')
+      +'<div class="meta">'+esc(x.item||"")+'</div>'+sndHtml
+      +'<div>'+(x.tome?'<span class="mob-tag" style="background:#e8721b">'+esc(x.tome)+'止め</span>':'')+(x.w1m?'<span class="mob-tag" style="background:#e8721b">⚠️重量要確認</span>':'')+'<span class="no">'+esc(x.okurijoNo||"")+'</span></div></div>';
+  }).join("");
+}
+function mobAlertsHtml(){
+  const j=TODAY_CACHE, out=[];
+  if(MOB.err==="unauthorized") out.push('<div class="mob-alert red"><b>ログインが切れています。</b><br><button onclick="logout()" style="margin-top:6px;padding:9px 14px;border-radius:9px;border:1px solid #c0392b;background:#fff;color:#c0392b;font-weight:700">ログインし直す</button></div>');
+  else if(TODAY_STALE && MOB.err) out.push('<div class="mob-alert red"><b>最新を取得できませんでした</b>（'+esc(MOB.err)+'）。'+(j?'表示は前回分です。':'')+'この状態では締めを実行できません。「↻ 更新」を押してください。</div>');
+  const stall=MOB_KEYS.filter(k=>mobStepState(k).c==="stall");
+  if(stall.length) out.push('<div class="mob-alert red"><b>⚠️ 会社PCが処理していません</b><br>'+stall.map(k=>MOB_STEPS[k].nm).join("・")+' が '+MOB_STALL_MIN+'分以上「処理待ち」のままです。会社PCの電源・スリープ・ネット、または見張り（西濃の自動印刷）が止まっている可能性があります。<br>依頼は残っているので、<b>PCが動き出せば自動で実行されます</b>（もう一度押す必要はありません）。'+(stall.indexOf("pickup")>=0?'<br>16時の集荷に間に合わない時は、西濃袋井支店へ電話で集荷を依頼してください。':'')+'</div>');
+  const fe=j&&j.shime&&j.shime.fax&&!j.shime.fax.done&&j.shime.fax.err;
+  if(fe) out.push('<div class="mob-alert red"><b>出荷一覧表のFAXが西濃へ届いていません</b>（'+esc(mobHm(fe.at))+' '+fe.tries+'回目の失敗）<br>理由: '+esc(fe.reason||fe.error||"不明")+'<br>'+(fe.giveUp?'自動再送は打ち切りました。下のボタンで残り（FAX）をもう一度実行できます。':'次は '+esc(mobHm(fe.nextAt))+' ごろ自動で再送します（10分おき）。')+'</div>');
+  if(j&&j.has1m) out.push('<div class="mob-alert org">⚠️ 1m以下の材が含まれています。その分の重量は未確定です（実際の重さを確認してください）。</div>');
+  if(j&&j.count&&new Date().getHours()>=16&&!mobShime("pickup").done&&!mobShime("pickup").queued) out.push('<div class="mob-alert org">16時を過ぎています。集荷は当日17時、当日枠が無ければ翌営業日16時になります。</div>');
+  const np=j&&j.notifyPending;
+  if(np&&np.count){ const c=np.counts||{}; out.push('<div class="mob-alert blue">📢 楽天・ヤフーの発送処理がまだ '+np.count+'件'+(c.rakuten?'<br>・楽天'+c.rakuten+'件：集荷されたら自動で処理されます':'')+(c.yahoo?'<br>・ヤフー'+c.yahoo+'件：手動です（<a href="?pc=1">PC画面</a>の出荷一覧表タブ）':'')+(c.ichiba?'<br>・市場'+c.ichiba+'件：連絡済みにするのはPC画面で':'')+'</div>'); }
+  return out.join("");
+}
+function mobRender(){
+  if(!IS_MOB) return;
+  const j=TODAY_CACHE;
+  $("#mob-upd").textContent=MOB.at?(fmtD(j.date).replace(/-/g,"/")+"　"+mobHm(MOB.at)+" 時点"):(j?"前回の表示（最新を取得中…）":"読み込み中…");
+  $("#mob-alerts").innerHTML=mobAlertsHtml();
+  $("#mob-steps").innerHTML=MOB_KEYS.map(k=>{ const st=mobStepState(k), d=MOB_STEPS[k];
+    return '<div class="mob-step"><span class="ic">'+d.ic+'</span><span class="nm">'+d.nm+'<small>'+d.sub+'</small></span><span class="mob-st '+st.c+'">'+st.t+'</span></div>'; }).join("");
+  $("#mob-sum").innerHTML=j?('<div><b>'+j.count+'</b>件</div><div><b>'+j.kosu+'</b>個口</div><div><b>'+j.weightKg+'</b>kg</div>'):'';
+  $("#mob-list").innerHTML=j?(j.count?mobCardsHtml(j.list):'<div class="hint" style="padding:12px;text-align:center">本日発送する送り状はまだありません</div>'):'';
+  const b=$("#mob-go"); b.className=""; let dis=true, txt;
+  const rem=mobRemaining(), anyQ=MOB_KEYS.some(k=>mobShime(k).queued);
+  if(MOB.running) txt="⏳ 実行中…";
+  else if(MOB.err==="unauthorized") txt="ログインが必要です";
+  else if(!MOB.at||TODAY_STALE) txt=MOB.at||MOB.err?"最新を取得できません（↻更新）":"最新を取得中…";
+  else if(!j.count) txt="本日の送り状はありません";
+  else if(!rem.length){ if(anyQ){ txt="⏳ 会社PCで処理中…"; b.className="wait"; } else { txt="✅ 本日の締めは完了しました"; b.className="fin"; } }
+  else { dis=false; txt=rem.length===3?"🏁 締めを実行（印刷＋FAX＋集荷）":"🏁 残りを実行（"+rem.map(k=>({print:"印刷",fax:"FAX",pickup:"集荷"})[k]).join("＋")+"）"; }
+  b.disabled=dis; b.textContent=txt;
+  if(MOB.sheet==="result") mobResultRender();
+}
+function mobSheet(mode, head, body, foot){
+  MOB.sheet=mode; $("#mob-sh-h").innerHTML=head; $("#mob-sh-b").innerHTML=body; $("#mob-sh-f").innerHTML=foot;
+  $("#mob-sheet").classList.add("open"); document.body.classList.add("mob-sh"); $("#mob-sh-b").scrollTop=0;
+}
+function mobClose(){ $("#mob-sheet").classList.remove("open"); document.body.classList.remove("mob-sh"); MOB.sheet=null; mobRender(); }
+// ① 一括ボタン → 最新を取り直してから確認画面
+async function mobConfirm(){
+  if(MOB.running) return;
+  const b=$("#mob-go"); b.disabled=true; b.textContent="最新の内容を確認中…";
+  await mobRefresh();
+  const j=TODAY_CACHE, rem=mobRemaining();
+  if(TODAY_STALE||!MOB.at||!j||!j.count||!rem.length) return;   // mobRenderが理由を表示済み
+  MOB.snap={count:j.count, kosu:j.kosu, weightKg:j.weightKg, nos:j.list.map(x=>x.okurijoNo).sort().join(","), steps:rem};
+  const skip=MOB_KEYS.filter(k=>rem.indexOf(k)<0);
+  const body=
+    '<div style="font-size:13px;font-weight:800;color:var(--muted);margin:2px 2px 6px">これから実行すること</div>'
+    +'<div class="mob-do">'+rem.map(k=>'<div>'+MOB_STEPS[k].ic+' <b>'+MOB_STEPS[k].nm+'</b>'+(MOB_STEPS[k].ext?'<span class="mob-ext">西濃へ送信</span>':'')+'<br><span style="font-size:12px;color:var(--muted)">'+MOB_STEPS[k].sub+'</span></div>').join("")+'</div>'
+    +(MOB_KEYS.some(k=>mobStepState(k).c==="stall")?'<div class="mob-alert red"><b>⚠️ 会社PCが止まっている可能性があります</b>（処理待ちのまま'+MOB_STALL_MIN+'分以上たった依頼があります）。実行しても、会社PCが動くまで印刷・FAX・集荷依頼は行われません。</div>':'')
+    +(skip.length?'<div class="mob-alert blue" style="font-size:12.5px">済み・処理中のため今回は実行しません: '+skip.map(k=>MOB_STEPS[k].nm+"（"+mobStepState(k).t+"）").join("、")+'</div>':'')
+    +'<div class="mob-sum"><div><b>'+j.count+'</b>件</div><div><b>'+j.kosu+'</b>個口</div><div><b>'+j.weightKg+'</b>kg</div></div>'
+    +((rem.indexOf("print")>=0||rem.indexOf("fax")>=0)?'<div class="mob-alert org"><b>⚠️ 出荷一覧表を印刷／FAXすると西濃側で「出荷確定」になり、送り状の修正も削除もできなくなります。</b><br>下の届け先・個口・荷送人を確認してください。間違いがあれば先に送り状を作り直してから締めてください。</div>':'')
+    +(rem.indexOf("pickup")>=0?'<div class="mob-alert blue" style="font-size:12.5px">🚛 集荷依頼: <b>'+j.kosu+'個口・'+j.weightKg+'kg</b>・本日16時頃<br>備考（自動）: '+esc(pickupAutoBiko(j))+(new Date().getHours()>=16?'<br><b>16時を過ぎています</b>＝当日17時、枠が無ければ翌営業日16時':'')+'</div>':'')
+    +mobCardsHtml(j.list)
+    +'<label class="mob-ack"><input type="checkbox" id="mob-ack" onchange="$(\'#mob-run\').disabled=!this.checked"> 上の内容（件数・個口・届け先・荷送人）を確認しました</label>';
+  mobSheet("confirm",'🏁 締めの最終確認',body,
+    '<button class="cancel" onclick="mobClose()">やめる</button><button id="mob-run" class="mob-big" onclick="mobExecute()" disabled>実行する</button>');
+  mobRender();
+}
+// ② 実行（実行直前にもう一度最新を取り、確認した内容と同じ時だけキューに積む）
+async function mobExecute(){
+  if(MOB.running) return;
+  const ack=$("#mob-ack"); if(!ack||!ack.checked){ toast("「確認しました」にチェックを入れてください"); return; }
+  MOB.running=true; const rb=$("#mob-run"); if(rb){ rb.disabled=true; rb.textContent="実行中…"; }
+  try{
+    let j; try{ j=await mobFetchToday(); await mobJobAges(j); }
+    catch(e){ TODAY_STALE=true; MOB.err=String((e&&e.message)||"通信エラー");
+      mobSheet("msg","⚠️ 実行しませんでした",'<div class="mob-alert red">最新の内容を確認できなかったため、<b>何も実行していません</b>（'+esc(MOB.err)+'）。<br>電波の良い所で「↻ 更新」してから、もう一度お試しください。</div>','<button class="cancel" style="flex:1" onclick="mobClose()">閉じる</button>'); return; }
+    const sn=MOB.snap||{}, nos=j.list.map(x=>x.okurijoNo).sort().join(",");
+    if(j.count!==sn.count||j.kosu!==sn.kosu||j.weightKg!==sn.weightKg||nos!==sn.nos){
+      mobSheet("msg","⚠️ 内容が変わりました",'<div class="mob-alert org">確認画面を開いた後に、本日の送り状が変わりました（'+sn.count+'件'+sn.kosu+'個口'+sn.weightKg+'kg → <b>'+j.count+'件'+j.kosu+'個口'+j.weightKg+'kg</b>）。<br><b>何も実行していません。</b>もう一度、内容を確認してください。</div>','<button class="cancel" style="flex:1" onclick="mobClose()">戻る</button>'); return; }
+    const rem=mobRemaining(), steps=(sn.steps||[]).filter(k=>rem.indexOf(k)>=0);
+    MOB.req={steps:steps, skipped:(sn.steps||[]).filter(k=>rem.indexOf(k)<0), res:{}, at:Date.now()};
+    steps.forEach(k=>MOB.req.res[k]={st:"wait"});
+    mobResultRender(true);
+    await mobRunSteps(steps);
+  }finally{ MOB.running=false; }
+  MOB.pollUntil=Date.now()+15*60000;
+  mobRefresh(true);
+}
+async function mobRunSteps(steps){
+  for(const k of steps){
+    MOB.req.res[k]={st:"sending"}; mobResultRender();
+    let r;
+    try{ r=(k==="print")?await gasGet("seinolistprint"):(k==="fax")?await gasGet("seinoefax"):await gasGet2("seinopickupqueue","biko="); }   // 備考は空＝会社PCが最新合計で自動文面
+    catch(e){ MOB.req.res[k]={st:"comm", msg:"通信エラー（"+((e&&e.message)||"")+"・3回再試行済み）"}; mobResultRender(); continue; }
+    if(r&&r.error==="voidPending"){   // 取消した送り状がKM2に残っている＝以降も実行しない（PC画面と同じ止め方）
+      MOB.req.res[k]={st:"fail", msg:"取消した送り状がKM2に残っています（"+(r.pending||[]).join("・")+"）"};
+      steps.slice(steps.indexOf(k)+1).forEach(x=>MOB.req.res[x]={st:"fail", msg:"上の理由で実行していません"});
+      mobResultRender(); await voidPendingBlock(r); return;
+    }
+    const ok=(k==="print")?!!(r&&r.ok):!!(r&&r.queued);
+    MOB.req.res[k]=ok?{st:"sent"}:{st:"fail", msg:String((r&&(r.message||r.error))||"対象なし")};
+    mobResultRender();
+  }
+}
+// ③ 結果画面（受付→会社PC処理待ち→済み をライブ表示）
+function mobResultRender(open){
+  const q=MOB.req; if(!q) return;
+  let allDone=q.steps.length>0, anyComm=false;
+  const rows=q.steps.map(k=>{
+    const r=q.res[k]||{}, d=MOB_STEPS[k]; let st;
+    if(r.st==="wait") st={c:"todo",t:"順番待ち"};
+    else if(r.st==="sending") st={c:"run",t:"登録中…"};
+    else if(r.st==="comm"){ st={c:"err",t:"❌ 通信エラー"}; anyComm=true; }
+    else if(r.st==="fail") st={c:"err",t:"❌ 実行されず"};
+    else { st=mobStepState(k); if(st.c==="todo") st={c:"queued",t:"⏳ 受付済み"}; }
+    if(st.c!=="done") allDone=false;
+    return '<div class="mob-step"><span class="ic">'+d.ic+'</span><span class="nm">'+d.nm+(r.msg?'<small style="color:#b3261e">'+esc(r.msg)+'</small>':'<small>'+d.sub+'</small>')+'</span><span class="mob-st '+st.c+'">'+st.t+'</span></div>';
+  }).join("");
+  const working=q.steps.some(k=>{ const r=q.res[k]||{}; return r.st==="wait"||r.st==="sending"; });
+  const body=
+    (allDone?'<div class="mob-alert" style="background:#e6f4ea;border:1px solid #b7e1c0;color:#1e5e30;font-size:15px"><b>✅ すべて完了しました</b><br>'+q.steps.map(k=>MOB_STEPS[k].done).join("・")+'</div>'
+      :working?'<div class="mob-alert blue">登録しています。画面を閉じずにお待ちください…</div>'
+      :'<div class="mob-alert blue">受け付けました。会社PCが1分以内に順に実行します。<br>この画面は自動で更新されます（閉じても処理は進みます）。</div>')
+    +'<div class="mob-steps">'+rows+'</div>'
+    +(q.skipped.length?'<div class="hint" style="margin:0 4px 10px">他の画面で済み・処理中だったため省略: '+q.skipped.map(k=>MOB_STEPS[k].nm).join("・")+'</div>':'')
+    +mobAlertsHtml()
+    +'<div class="hint" style="text-align:center">'+(MOB.at?mobHm(MOB.at)+' 時点の状態':'')+'</div>';
+  const foot=(anyComm&&!working&&!MOB.running?'<button class="mob-big" style="background:#c0392b" onclick="mobRetry()">失敗した分だけもう一度</button>':'')
+    +'<button class="cancel" style="flex:1" onclick="mobClose()" '+(working?'disabled':'')+'>閉じる</button>';
+  if(open||MOB.sheet!=="result") mobSheet("result",(allDone?"✅ 締め完了":"🏁 締めの実行結果"),body,foot);
+  else { $("#mob-sh-h").innerHTML=(allDone?"✅ 締め完了":"🏁 締めの実行結果"); $("#mob-sh-b").innerHTML=body; $("#mob-sh-f").innerHTML=foot; }
+}
+// 通信エラーだった処理だけ再実行（直前に最新を取り、済み・処理中になっていたら送らない＝二重登録しない）
+async function mobRetry(){
+  if(MOB.running||!MOB.req) return;
+  MOB.running=true;
+  try{
+    try{ await mobFetchToday(); }catch(e){ toast("まだ通信できません。電波の良い所でもう一度"); return; }
+    const rem=mobRemaining();
+    const steps=MOB.req.steps.filter(k=>(MOB.req.res[k]||{}).st==="comm");
+    steps.forEach(k=>{ if(rem.indexOf(k)<0) MOB.req.res[k]={st:"sent"}; });   // 実は届いていた＝済み/処理中として表示
+    const go=steps.filter(k=>rem.indexOf(k)>=0);
+    go.forEach(k=>MOB.req.res[k]={st:"wait"});
+    mobResultRender();
+    await mobRunSteps(go);
+  }finally{ MOB.running=false; }
+  MOB.pollUntil=Date.now()+15*60000;
+  mobRefresh(true);
+}
+// 処理待ちがある間だけ自動更新（結果画面=8秒・一覧=20秒・最長15分）
+function mobPollNext(){
+  clearTimeout(MOB.pollT); MOB.pollT=null;
+  const anyQ=MOB_KEYS.some(k=>mobShime(k).queued);
+  if(!anyQ && !(MOB.sheet==="result"&&MOB.req&&MOB.req.steps.some(k=>(MOB.req.res[k]||{}).st==="sent"&&!mobShime(k).done))) return;
+  if(!MOB.pollUntil) MOB.pollUntil=Date.now()+15*60000;
+  if(Date.now()>MOB.pollUntil) return;
+  MOB.pollT=setTimeout(()=>{ if(document.hidden){ mobPollNext(); return; } mobRefresh(true); }, MOB.sheet==="result"?8000:20000);
 }
 init();
 </script>
