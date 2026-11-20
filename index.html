@@ -1406,7 +1406,7 @@ function parseKakouHash(){
 }
 function kakouPrefillFromParams(p){
   return kakouPrefill({uid:p.uid||"", customer:p.cust||"", name:p.name||p.cust||"", planned:parseInt(p.kosu,10)||1, length:p.len||"", grade:p.grade||"", qty:p.qty||"",
-    hinmei:p.hinmei||"", thickness:p.thick||"", due:p.date||"", chaku:p.chaku||"", chakuKbn:p.kbn||"", od:(p.od==="1"), orderId:"", note:p.note||""});
+    hinmei:p.hinmei||"", thickness:p.thick||"", width:p.width||"", due:p.date||"", chaku:p.chaku||"", chakuKbn:p.kbn||"", od:(p.od==="1"), orderId:"", note:p.note||""});
 }
 const KBN_CODE={"午前":"1","午後":"2","まで":"8"};
 function _normName(s){ return String(s||"").replace(/[\s　]/g,"").replace(/（[^）]*）|\([^)]*\)/g,"").replace(/株式会社|有限会社|\(株\)|（株）|\(有\)|（有）|様$|御中$/g,""); }
@@ -1420,6 +1420,15 @@ function findPartner(name, cust){
   });
   return best;
 }
+// 送り状の記事に入れる「中身」（例: 無節 フローリング 120／サンプルは 無節 羽目板 3枚）。記事は15字まで
+const KAKOU_HINMEI={F:"フローリング",P:"羽目板",S:"スノコ",N:"ナイスオリジナル"};
+function kakouNakami(r){
+  const len=Number(r.length)||0, hn=KAKOU_HINMEI[String(r.hinmei||"").trim()]||String(r.hinmei||"").trim();
+  const g=String(r.grade||"").trim(), w=String(r.width||"").trim();
+  if(len>0 && len<910) return [g,hn,(r.qty?(r.qty+"枚"):"")].filter(Boolean).join(" ");
+  const a=[g,hn,w].filter(Boolean).join(" ");
+  return a.length<=15?a:[g,hn].filter(Boolean).join(" ");
+}
 // 加工予定表の行 → フォームへ転記（注文由来はorder-deskの候補を引いて連携発行、手入力行は取引先マスタから住所）
 async function kakouPrefill(r){
   switchTab("issue"); resetForm();
@@ -1428,8 +1437,12 @@ async function kakouPrefill(r){
   const kosu=Math.max(1,parseInt(r.planned,10)||1);
   const kgPer=m>=3.6?40:m>=2.7?30:20;                                  // 2m=20kg/3m=30kg/4m=40kg（束）
   KAKOU_KG_PER=m?kgPer:0;                                              // 個口を変えた時の autoWeight もこの kg/口 で計算
-  const setQty=()=>{ $("#f-kosu").value=String(Math.min(30,kosu)); $("#f-kg").value=String(snapKg(kosu*kgPer)); if(m) $("#f-kiji1").value=m+"m×"+kosu; };
-  setQty();
+  // 2026-11-20 記事に「中身」を入れる（11/17 糸永3m束とサンプルの送り状を貼り違えた再発防止）。貼る人が荷物と見比べられるように
+  const lenMm=Number(r.length)||0, isSample=(lenMm>0 && lenMm<910);  // 910未満＝カットサンプル
+  const nakami=kakouNakami(r);
+  const setQty=()=>{ $("#f-kosu").value=String(Math.min(30,kosu)); $("#f-kg").value=String(snapKg(kosu*kgPer)); if(isSample) $("#f-kiji1").value=("★サンプル"+lenMm+"mm").slice(0,15); else if(m) $("#f-kiji1").value=m+"m×"+kosu; };
+  const setNakami=()=>{ const e=$("#f-kiji2"); if(!String(e.value||"").trim()) e.value=(isSample?("★サンプル"+lenMm+"mm"):nakami).slice(0,15); else if(isSample && !/サンプル/.test(e.value)) $("#f-kiji3").value=("★サンプル"+lenMm+"mm").slice(0,15); };
+  setQty(); if(isSample) $("#f-kiji2").value=nakami.slice(0,15); else setNakami();
   const today=localISO(); if(r.due && r.due>=today) $("#f-date").value=r.due;
   const setChaku=(d,kbn)=>{ if(!d) return; $("#f-yuso").value="02"; $("#f-haitatsu-date").value=d; $("#f-haitatsu-kbn").value=(["0","1","2","8"].indexOf(String(kbn))>=0?String(kbn):"0"); yusoToggle(); };
   const kbnCode=/^[0128]$/.test(String(r.chakuKbn||""))?String(r.chakuKbn):(KBN_CODE[String(r.chakuKbn||"")]||"0");
@@ -1443,7 +1456,7 @@ async function kakouPrefill(r){
       const pre=String(r.uid||"").replace(/_\d+$/,"");
       const c=list.find(x=>('od_'+String(x.id)).replace(/[.#$/\[\]:]/g,'_')===pre) || (r.orderId?list.find(x=>String(x.id)===String(r.orderId)):null);
       if(c){
-        pickCand(JSON.stringify(c)); KAKOU_KG_PER=m?kgPer:0; setQty();   // 個口・重量・記事は予定表の束数を優先
+        pickCand(JSON.stringify(c)); KAKOU_KG_PER=m?kgPer:0; setQty(); setNakami();   // 個口・重量・記事は予定表の束数を優先／連携発行は記事1が注文側なので中身(サンプル表示)は記事2で送る
         if(!r.chaku && c.deliveryDate) setChaku(c.deliveryDate,"0");  // 予定表に着日が無ければ注文の着日希望
         src="注文（"+c.customer+" 様"+(c.corpName?("・法人 "+c.corpName):"")+"）の届け先で連携発行します";
       } else src="注文が候補にありません（発行済み・取消・西濃以外）。届け先は手で入れてください";
